@@ -34,7 +34,8 @@ Interviewers often ask you to write code, then ask what happens when it fails or
 - [Comprehensions and functional tools](#16-comprehensions-lambda-map-filter-and-reduce)
 - [Exception handling and custom exceptions](#17-exception-handling-and-custom-exceptions)
 - [Mocking in unit tests](#18-mocking-in-unit-tests)
-- [Senior-level follow-up prompts](#19-senior-level-follow-up-prompts)
+- [HTTP requests with `requests`](#19-http-requests-with-requests)
+- [Senior-level follow-up prompts](#20-senior-level-follow-up-prompts)
 - [References](#references)
 
 ## 1. Context managers
@@ -969,7 +970,50 @@ def test_load_profile():
 
 Patch the name where the code under test looks it up, not necessarily where the dependency was originally defined. Mock behavior that matters to the test, such as a return value or failure; avoid asserting every internal call. Too many mocks can make tests pass even when real components do not work together, so keep integration tests for important boundaries.
 
-## 19. Senior-level follow-up prompts
+## 19. HTTP requests with `requests`
+
+`requests` is a popular third-party library for making synchronous HTTP calls. It is not part of Python's standard library.
+
+```python
+import requests
+
+response = requests.get(
+    "https://api.example.com/users",
+    params={"active": "true"},
+    timeout=(2, 5),  # connect timeout, read timeout
+)
+response.raise_for_status()
+users = response.json()
+```
+
+Send JSON with `json=...`; Requests encodes it and sets the JSON content type:
+
+```python
+response = requests.post(
+    "https://api.example.com/users",
+    json={"name": "Asha"},
+    timeout=5,
+)
+response.raise_for_status()
+```
+
+| Tool | What it does |
+|---|---|
+| `params=` | Adds URL query parameters |
+| `json=` | Encodes a JSON request body |
+| `raise_for_status()` | Raises an HTTP error for a 4xx/5xx response |
+| `timeout=` | Limits how long to wait for connection/read activity |
+| `requests.Session()` | Reuses connections and shares session settings/cookies |
+
+Always set a timeout in production. A successful `response.json()` only means the response body was valid JSON; call `raise_for_status()` to check for an HTTP error. For repeated calls to one service, use a `Session`. Requests is synchronous; use an async HTTP client when calling from an asyncio event loop.
+
+```python
+with requests.Session() as session:
+    response = session.get("https://api.example.com/profile", timeout=5)
+    response.raise_for_status()
+```
+
+## 20. Senior-level follow-up prompts
 
 For each topic, expect a question about correctness at scale:
 
@@ -1005,3 +1049,4 @@ For each topic, expect a question about correctness at scale:
 - [`functools.reduce`](https://docs.python.org/3/library/functools.html#functools.reduce)
 - [Built-in exceptions](https://docs.python.org/3/library/exceptions.html)
 - [`unittest.mock`](https://docs.python.org/3/library/unittest.mock.html)
+- [Requests quickstart](https://requests.readthedocs.io/en/latest/user/quickstart/)
