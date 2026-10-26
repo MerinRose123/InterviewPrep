@@ -20,6 +20,7 @@ Code-focused notes for senior software engineer interviews. Examples use modern 
 - [Dependency injection](#dependency-injection)
 - [`HashMap` internals and thread safety](#hashmap-internals-and-thread-safety)
 - [`ConcurrentHashMap`](#concurrenthashmap)
+- [Senior Java: practical interview questions](#senior-java-practical-interview-questions)
 - [References](#references)
 
 ## JVM, JRE, and JDK
@@ -613,6 +614,363 @@ counts.computeIfAbsent("blue", key -> new LongAdder()).increment();
 
 Use `compute`, `merge`, or `putIfAbsent` instead of a racy `if (map.get(key) == null) map.put(...)` sequence. Keep mapping functions short and avoid recursively modifying the same map from them.
 
+## Senior Java: practical interview questions
+
+Related sheets: [OOP design questions](OOP_CheatSheet.md) and [Spring Boot questions](SpringBoot_CheatSheet.md). OOP pillars, inheritance, polymorphism, SOLID, and design patterns live in the OOP sheet.
+
+**How to answer:** explain the mechanism, show the smallest useful example, name a failure mode, compare alternatives, and describe how you would verify the choice. Snippets are focused fragments; imports and application collaborators may be omitted. Baseline is Java 17 unless marked otherwise.
+
+### 1. Why can a key become unreachable in a HashMap?
+
+**Scenario:** a customer is inserted as a key, its email changes, and lookup starts returning `null`. If equality/hash fields change, lookup can select a different bucket. Use immutable identity fields. Equal objects must have equal hash codes; the reverse is not required. `equals` must be reflexive, symmetric, transitive, consistent, and false for `null`.
+
+```java
+record CustomerKey(long tenantId, long customerId) {}
+Map<CustomerKey, String> names = new HashMap<>();
+names.put(new CustomerKey(7, 42), "Ada");
+System.out.println(names.get(new CustomerKey(7, 42))); // Ada
+```
+
+`==` compares reference identity for objects; `equals` expresses logical equality. Records generate component-based equality, but array components still use array identity unless you override behavior.
+
+**Dig deeper:** why override both methods? What if every key returns hash code 1? How does `TreeMap` define duplicate keys? How would database-generated IDs affect entity equality before/after persistence?
+
+### 2. Is Java pass-by-reference? Why does reassignment not affect the caller?
+
+Java always passes values. For an object argument, the copied value is a reference: mutation can be visible through that reference, but replacing the local reference does not replace the caller's variable.
+
+```java
+static void change(List<String> items) {
+    items.add("visible");
+    items = new ArrayList<>(); // only changes this local variable
+}
+```
+
+**Dig deeper:** explain why a `swap(Object a, Object b)` method cannot swap caller variables. A `final` reference prevents reassignment, not mutation of the referenced object.
+
+### 3. Why is String immutable, and when does concatenation become expensive?
+
+Immutability permits safe sharing, stable hash keys, and pooling. Literals are interned; `new String("x")` creates a distinct object. Do not use `==` for content. Repeated concatenation in a loop can repeatedly copy growing content; use a builder.
+
+```java
+String a = "java";
+String b = new String("java");
+System.out.println(a == b);      // false
+System.out.println(a.equals(b)); // true
+StringBuilder out = new StringBuilder();
+for (String part : parts) out.append(part);
+String result = out.toString();
+```
+
+| Choice | Practical fit | Cost / trap |
+|---|---|---|
+| `String` | Values, keys, a few concatenations | Loop accumulation can create many intermediate values |
+| `StringBuilder` | Locally building text | Mutable; unsafe for concurrent mutation |
+| `StringBuffer` | Legacy APIs requiring synchronized methods | Individual method synchronization does not make a multi-call workflow atomic |
+| `intern()` | Deliberately canonicalizing a controlled vocabulary | Retention and lookup overhead; measure before interning arbitrary inputs |
+
+**Dig deeper:** why is `s += x` different inside a large loop? Why are `StringBuilder` instances usually local? Why avoid logging credentials even when stored in a mutable array?
+
+### 4. How do you create an immutable value? Is a record deeply immutable?
+
+Make state private, prevent subclass mutation, validate at construction, and defensively copy mutable inputs and outputs. Records make component references final; referenced objects can still change.
+
+```java
+record OrderSnapshot(long id, List<String> tags) {
+    OrderSnapshot {
+        tags = List.copyOf(tags); // detached, unmodifiable list; rejects null elements
+    }
+}
+```
+
+This is sufficient for immutable `String` elements; mutable elements need their own copying/ownership policy.
+
+| Technique | Benefit | Limitation |
+|---|---|---|
+| Unmodifiable wrapper | Cheap view | Original collection can still change |
+| `List.copyOf` | Snapshot of element references | Shallow copy |
+| Deep copy / immutable element model | Prevents nested state changes | Allocation and model complexity |
+
+**Dig deeper:** can a record be a mutable map key? Does `final` make an object thread-safe? What is the difference between ownership and synchronization?
+
+### 5. What language traps appear in production code?
+
+| Question | Practical answer / syntax | Failure mode |
+|---|---|---|
+| `final` vs. `finally` vs. `finalize`? | `final` restricts reassignment/extension/overriding; `finally` performs cleanup; `finalize()` is deprecated for removal | Finalization is unpredictable; use try-with-resources |
+| Can boxing throw? | `Integer x = null; int y = x;` throws NPE | Nullable DB fields unexpectedly unboxed |
+| Can wrapper identity be trusted? | `Integer.valueOf(1000).equals(1000)` checks value | `==` results depend on object identity/caching |
+| Is `static` per object? | Belongs to the class identity, including its defining class loader | Shared mutable state and class-loader retention |
+| Why `BigDecimal` for money? | `new BigDecimal("0.10")`; specify scale and rounding policy | Binary floating point cannot exactly represent many decimal fractions |
+
+`new BigDecimal("1.0").equals(new BigDecimal("1.00"))` is false because scale matters; `compareTo` returns zero. Decide whether scale belongs in your domain equality before using these as keys.
+
+**Dig deeper:** why should `finally` avoid `return`? It can hide the original return value or exception. Why is monetary currency as important as amount?
+
+### 6. What lives on the stack, heap, and in metaspace?
+
+Threads have JVM stacks with invocation frames and local variables; objects/arrays are conceptually on the heap. A local reference and its object are different things. HotSpot metaspace holds class metadata in native memory. JIT optimizations can eliminate allocations, so avoid claiming every source-level allocation necessarily materializes on the heap.
+
+| Symptom | Likely direction | Evidence to collect |
+|---|---|---|
+| `StackOverflowError` | Recursion / excessive call depth | Stack trace and recursive cycle |
+| `OutOfMemoryError: Java heap space` | Live set too large or leak | Heap dump, dominator tree, paths to GC roots |
+| Metaspace OOM | Excess classes / retained class loaders | Class-loading metrics and loader retention |
+| Unable to create native thread | Thread count / OS or memory limits | Thread count, stack sizes, container limits |
+| Process killed without Java OOM | Container/native-memory pressure | Container events and process RSS |
+
+**Dig deeper:** increasing heap can hide a leak and leave less native headroom. How would you distinguish an allocation spike from retained growth after GC?
+
+### 7. How does GC work, and how would you investigate a memory leak?
+
+GC finds objects reachable from roots such as live thread references and static fields of reachable classes; unreachable cycles can be collected. A Java leak means unwanted objects remain reachable, often through caches, listeners, queues, static collections, or thread-local state.
+
+**Investigation:** compare post-GC live-set trends under comparable load; inspect allocation and GC telemetry; take an authorized heap dump; inspect dominators and retention paths; reproduce the ownership bug and validate retained size after the fix. Dumps may contain application data and can pause a process.
+
+```sh
+jcmd <pid> GC.heap_info
+jcmd <pid> Thread.print
+jcmd <pid> JFR.start name=incident settings=profile duration=60s filename=incident.jfr
+# Intrusive: plan disk space and operational impact before requesting a heap dump.
+jcmd <pid> GC.heap_dump /safe/path/heap.hprof
+```
+
+| Approach | Fits | Tradeoff |
+|---|---|---|
+| G1 | General-purpose balance of throughput and pauses | Pause goals are targets; tuning needs workload evidence |
+| ZGC | Workloads prioritizing low pauses | Concurrent work and memory headroom costs |
+| Parallel GC | Throughput-oriented batch jobs | Potentially longer stop-the-world pauses |
+
+Collector availability/defaults depend on JDK and vendor. Measure allocation rate, pause distribution, throughput, and CPU before switching. `System.gc()` is a request, not a leak fix.
+
+**Dig deeper:** why can low heap use coexist with high RSS? What does a cache need besides thread safety? Distinguish weak/soft references from explicit size and expiry policies.
+
+### 8. How do class loading and initialization cause surprises?
+
+A class is loaded, linked (verification, preparation, resolution), then initialized when required by active use. Static initialization is coordinated by the JVM. Class identity includes the defining class loader, so identical class names loaded independently can be incompatible.
+
+```java
+class ClientHolder {
+    private ClientHolder() {}
+    private static class Lazy {
+        static final Client INSTANCE = new Client();
+    }
+    static Client instance() { return Lazy.INSTANCE; }
+}
+```
+
+The holder idiom uses class initialization for safe lazy publication. It does not make `Client` internals thread-safe. Avoid slow network calls and circular dependencies in static initializers.
+
+**Dig deeper:** `ClassNotFoundException` vs. `NoClassDefFoundError`? Explicit loading can fail to find a class; linkage can fail because a class/dependency is unavailable or prior initialization failed. What retains a class loader after redeployment?
+
+### 9. What does happens-before mean? How do you safely publish state?
+
+Happens-before provides visibility and ordering guarantees; it does not mean tasks must run simultaneously or make compound operations atomic. Relevant edges include unlock to subsequent lock of the same monitor, volatile write to subsequent read, and thread start/join relationships.
+
+```java
+final class ConfigStore {
+    private volatile Map<String, String> current = Map.of();
+    void reload(Map<String, String> next) {
+        current = Map.copyOf(next); // publish a complete immutable snapshot
+    }
+    String get(String key) { return current.get(key); }
+}
+```
+
+A reader sees a published snapshot. Two separate `get` calls may observe different snapshots; capture one reference when a consistent multi-key read matters. Do not let `this` escape during construction.
+
+**Dig deeper:** why is double-checked locking broken without `volatile`? Why does adding `sleep` fail to establish safe publication? See the [Java memory model](https://docs.oracle.com/javase/specs/jls/se25/html/jls-17.html).
+
+### 10. When would you choose a lock, CAS, or LongAdder?
+
+| Choice | Best fit | Tradeoff |
+|---|---|---|
+| `synchronized` | Small critical section / related state | Blocking; monitor entry has no timed/interruptible acquisition API |
+| `ReentrantLock` | Timed/interruptible locking, multiple conditions | Must unlock in `finally`; fairness can cost throughput |
+| `AtomicInteger` / CAS | Single-variable state transitions | Retry contention; multi-field invariants still require design |
+| `LongAdder` | Highly contended statistics | `sum()` is not an atomic snapshot during updates; unsuitable for quota enforcement |
+| Immutable snapshots | Read-heavy configuration | Copying cost; coordinated writes still needed |
+
+```java
+private final ReentrantLock lock = new ReentrantLock();
+boolean reserve() throws InterruptedException {
+    if (!lock.tryLock(100, TimeUnit.MILLISECONDS)) return false;
+    try {
+        if (available == 0) return false;
+        available--;
+        return true;
+    } finally {
+        lock.unlock();
+    }
+}
+```
+
+**Dig deeper:** explain CAS retry loops and the ABA problem. Never perform irreversible external effects inside a retryable update function. What happens if two balances must change atomically?
+
+### 11. How do deadlock, starvation, and livelock differ?
+
+Deadlock: tasks wait cyclically for resources. Starvation: a task repeatedly fails to get execution/resources. Livelock: tasks keep reacting/retrying without useful progress.
+
+**Scenario:** transfers lock source then destination; opposite transfers deadlock. Acquire locks in a stable global order, with an explicit tie policy, or use a single coordinating lock. Timeouts bound waiting but do not by themselves guarantee correctness.
+
+```java
+// Account IDs are unique; every code path must use this same lock ordering.
+Account first = a.id() < b.id() ? a : b;
+Account second = a.id() < b.id() ? b : a;
+synchronized (first) {
+    synchronized (second) {
+        // validate and update both balances under these locks
+    }
+}
+```
+
+**Dig deeper:** collect multiple thread dumps; look for owner/waiter cycles. Database deadlocks require DB diagnostics too. How would you keep network I/O out of the critical section?
+
+### 12. How should threads wait, communicate, and stop?
+
+| API | Behavior | Practical caution |
+|---|---|---|
+| `Thread.sleep` | Delays current thread; retains held monitors | Timing is not synchronization |
+| `Object.wait` | Releases that object's monitor while waiting; reacquires before return | Hold monitor; test condition in a loop for spurious wakeups |
+| `BlockingQueue` | Coordinates producers/consumers | Bound capacity to prevent unlimited buffering |
+| `CountDownLatch` | One-shot completion gate | Cannot reset |
+| `Semaphore` | Limits concurrent resource users | Release only after successful acquisition |
+| Interruption | Cooperative stop signal | Propagate `InterruptedException` or restore status when translating |
+
+```java
+try {
+    Task task = queue.take();
+    process(task);
+} catch (InterruptedException e) {
+    Thread.currentThread().interrupt();
+    return; // terminate this worker loop / task
+}
+```
+
+**Dig deeper:** `Thread.interrupted()` clears the current thread's status; `isInterrupted()` does not. `notify` does not release the lock immediately. Why are higher-level queues safer than hand-written wait/notify protocols?
+
+### 13. How do you size an executor and handle overload?
+
+CPU-heavy tasks generally start with concurrency near available CPU capacity; blocking workloads need measurement of wait time and resource limits. Queue size is part of the latency and memory budget. `newFixedThreadPool` bounds workers but uses an unbounded queue.
+
+```java
+ThreadPoolExecutor pool = new ThreadPoolExecutor(
+    8, 8, 0, TimeUnit.MILLISECONDS,
+    new ArrayBlockingQueue<>(200),
+    new ThreadPoolExecutor.AbortPolicy());
+try {
+    pool.execute(task);
+} catch (RejectedExecutionException e) {
+    // reject at the boundary with a deliberate retry/backpressure policy
+}
+// At application shutdown: pool.shutdown(); await termination within a deadline.
+```
+
+| Overload policy | Benefit | Risk |
+|---|---|---|
+| Abort / explicit rejection | Fast, visible overload | Caller must translate and handle failure |
+| Caller-runs | Slows submitting thread | Can stall request/event-loop threads; after shutdown it discards tasks |
+| Unbounded queue | Absorbs short bursts | Latency and memory can grow without bound |
+| Drop policy | Useful for explicitly disposable work | Silent data loss if applied to business operations |
+
+**Dig deeper:** monitor queue wait, active workers, rejection count, and downstream saturation. Why can a task waiting for another task in the same saturated pool deadlock? See [executor configuration rules](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/concurrent/ThreadPoolExecutor.html).
+
+### 14. How do you compose CompletableFuture safely?
+
+Use `thenApply` for synchronous transformation, `thenCompose` for a dependent asynchronous operation, and `thenCombine` for independent results. Choose an executor deliberately for blocking work.
+
+```java
+CompletableFuture<User> user = CompletableFuture.supplyAsync(
+    () -> loadUser(id), ioExecutor);
+CompletableFuture<Profile> profile = user
+    .thenCompose(u -> loadProfileAsync(u.id()))
+    .orTimeout(800, TimeUnit.MILLISECONDS);
+CompletableFuture<Profile> observed = profile.whenComplete((value, error) -> {
+    if (error != null) logFailure(error); // observation; do not throw here
+});
+```
+
+| Method | Purpose | Trap |
+|---|---|---|
+| `exceptionally` | Recover with a value | A fake success can conceal failure |
+| `handle` | Transform success or failure | Must deliberately handle both branches |
+| `whenComplete` | Observe outcome | A throwing callback can affect dependent completion |
+| `get` | Wait with checked failures / optional timeout | Blocks caller |
+| `join` | Wait with unchecked completion failure | Also blocks; not inherently asynchronous |
+
+Timeout completion does not automatically stop the underlying network/DB call. Configure transport timeouts and cancellation separately. See [CompletableFuture policies](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/concurrent/CompletableFuture.html).
+
+**Dig deeper:** what executor runs a non-async continuation? What happens to request context across threads? Why does `allOf` not return a list of results?
+
+### 15. When do virtual threads help, and what remains bounded?
+
+They fit high-concurrency blocking I/O, while CPU capacity and DB/HTTP connection capacity remain finite. Use a semaphore or connection pool for scarce downstream resources. A large number of virtual threads can still retain a large amount of request state.
+
+```java
+// Java 21+; use a shared limiter for this downstream across requests.
+Semaphore permits = new Semaphore(50);
+try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+    Future<String> f = executor.submit(() -> {
+        if (!permits.tryAcquire(100, TimeUnit.MILLISECONDS)) {
+            throw new RejectedExecutionException("downstream busy");
+        }
+        try { return blockingCallWithTimeout(); }
+        finally { permits.release(); }
+    });
+    System.out.println(f.get());
+}
+```
+
+**Dig deeper:** where do you bound queued/waiting requests? What is the effect of thread-local data per virtual thread? On JDK 21, blocking inside `synchronized` can pin a carrier; JDK 24's JEP 491 removes monitor-related pinning, but native/foreign-code cases still require attention. Diagnose against the deployed JDK, rather than applying old blanket rules.
+
+### 16. What stream and Optional pitfalls matter in real code?
+
+```java
+Map<String, Long> totals = orders.stream().collect(
+    Collectors.groupingBy(Order::status, Collectors.counting()));
+Map<Long, Order> byId = orders.stream().collect(
+    Collectors.toMap(Order::id, Function.identity(), (oldValue, newValue) -> newValue));
+String display = userOptional.map(User::name).orElseGet(this::loadDefaultName);
+```
+
+| Choice | Use | Tradeoff |
+|---|---|---|
+| Loop | Stateful logic, early exits, complex error paths | More explicit bookkeeping |
+| Sequential stream | Clear transformation / aggregation | Debugging complex pipelines can be harder |
+| Parallel stream | Measured independent CPU work with enough data | Shared resources, ordering, and splitting overhead |
+| `orElse(value)` | Cheap fallback already available | Argument evaluates eagerly |
+| `orElseGet(supplier)` | Expensive fallback | Supplier runs only when empty |
+
+`toMap` without a merge rule throws for duplicate keys. `Stream.toList()` is unmodifiable; `Collectors.toList()` does not promise a concrete type or mutability. Use `toCollection(ArrayList::new)` when a mutable `ArrayList` is required. Captured local variables must be final/effectively final, but captured objects can still be mutable.
+
+**Dig deeper:** why can `peek(...).count()` skip expected side effects? Optimizations can eliminate unnecessary traversal. Why must a parallel reduction be associative? Why is a shared `ArrayList` inside `parallelStream().forEach` unsafe?
+
+### 17. How would you diagnose a slow Java endpoint?
+
+**Work through:** reproduce workload → inspect p50/p95/p99 and errors → split queueing, CPU, GC, DB, and network time → use traces and profiles → change one bottleneck → compare under the same load. High latency with low CPU often points to waiting; high CPU requires a CPU profile rather than guessing.
+
+| Evidence | Useful question |
+|---|---|
+| JFR / profiler | Where is CPU or allocation concentrated? |
+| Thread dumps | Are workers blocked, waiting, or stuck in downstream calls? |
+| GC logs / live-set trend | Are pauses or allocation pressure responsible? |
+| Connection-pool metrics | Are requests waiting for DB connections? |
+| JMH microbenchmark | Is a local algorithm faster after warmup and dead-code controls? |
+
+**Dig deeper:** why is a single `System.nanoTime()` loop misleading? JIT warmup, dead-code elimination, GC, and workload bias. How does a larger pool worsen an already overloaded database?
+
+### 18. Practical coding follow-ups
+
+| Exercise | What to implement | Follow-up to defend |
+|---|---|---|
+| Frequency counter | `merge` sequentially; concurrent map plus atomics for shared updates | Null policy, contention, consistency of snapshots |
+| Top-K events | Bounded priority queue, O(n log k) | Tie policy, stream size, approximate alternatives |
+| LRU cache | Access-order `LinkedHashMap` with eviction | Access mutates order; thread safety, TTL, stampede prevention |
+| Producer/consumer | Bounded `BlockingQueue` and interruptible workers | Shutdown, poison-pill count, failure/retry ownership |
+| Deduplicate events | Stable key plus atomic insertion | Process-local state fails across replicas/restarts; durable uniqueness needed |
+
+For each exercise, explain input constraints, complexity, edge cases, concurrency assumptions, and how failures affect correctness.
+
 ## References
 
 - [Java release notes](https://www.oracle.com/java/technologies/javase/jdk-relnotes-index.html)
@@ -642,3 +1000,7 @@ Use `compute`, `merge`, or `putIfAbsent` instead of a racy `if (map.get(key) == 
 - [JEP 512: Compact Source Files and Instance Main Methods](https://openjdk.org/jeps/512)
 - [JDK/JRE image changes in later Java releases](https://docs.oracle.com/en/java/javase/26/migrate/migrating-from-jdk-8-later-jdk-releases.html)
 - [Spring dependency injection](https://docs.spring.io/spring-framework/reference/core/beans/dependencies/factory-collaborators.html)
+
+- [Java ThreadPoolExecutor API](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/concurrent/ThreadPoolExecutor.html)
+- [Java CompletableFuture API](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/concurrent/CompletableFuture.html)
+- [JEP 491: Synchronize Virtual Threads without Pinning](https://openjdk.org/jeps/491)

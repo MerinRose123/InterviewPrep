@@ -11,6 +11,7 @@ Code-first notes for common Django, Django REST Framework, Flask, and FastAPI in
 - [Django pagination](#django-pagination)
 - [Advanced Django ORM queries](#advanced-django-orm-queries)
 - [Django database migrations](#django-database-migrations)
+- [Django indexing: practical interview questions](#django-indexing-practical-interview-questions)
 - [SQL joins and Django relationships](#sql-joins-and-django-relationships)
 - [N+1 queries, `select_related`, and `prefetch_related`](#n1-queries-select_related-and-prefetch_related)
 - [CSRF and SQL injection protection](#csrf-and-sql-injection-protection-in-django)
@@ -178,6 +179,123 @@ books = Book.objects.filter(published=True).order_by("title")[:20]
 ```
 
 Lookup suffixes include `__exact`, `__contains`, `__icontains`, `__in`, `__gte`, and `__isnull`. Use `get_object_or_404()` in views when a missing object should become an HTTP 404.
+
+## Django indexing: practical interview questions
+
+### Can Django create database indexes?
+
+**Yes.** The ORM declares them; migrations create them in the actual database. Database indexes help ORM queries and raw SQL alike. A new QuerySet does not build an index.
+
+```python
+from django.db import models
+
+class Order(models.Model):
+    # ForeignKey normally receives a database index automatically.
+    customer = models.ForeignKey("Customer", on_delete=models.PROTECT)
+    status = models.CharField(max_length=20)
+    created_at = models.DateTimeField(auto_now_add=True)
+    # Simple single-column example; only add when its queries justify it.
+    external_reference = models.CharField(max_length=100, db_index=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["customer", "status", "-created_at", "-id"],
+                name="order_cust_stat_recent",
+            ),
+        ]
+```
+
+The composite candidate matches this access pattern:
+
+```python
+qs = (Order.objects
+      .filter(customer_id=42, status="paid")
+      .order_by("-created_at", "-id")[:50])
+print(qs.query)
+print(qs.explain())
+# PostgreSQL; executes the SELECT, so use representative controlled conditions.
+print(qs.explain(analyze=True, buffers=True))
+```
+
+Do not add redundant `db_index=True` for primary keys or fields already indexed by `unique=True`. A foreign key's automatic single-column index is not the same as a composite filter/order index. See [field index behavior](https://docs.djangoproject.com/en/5.2/ref/models/fields/#db-index) and [model indexes](https://docs.djangoproject.com/en/5.2/ref/models/indexes/).
+
+### What are the tradeoffs of the available declarations?
+
+| Syntax / technique | Practical fit | Tradeoff |
+|---|---|---|
+| `field = models.CharField(..., db_index=True)` | Simple field lookup | Additional storage and write work |
+| `models.Index(fields=["a", "b"])` | Common combined filter/order | Order and workload matter |
+| `unique=True` / `UniqueConstraint` | Enforce business uniqueness | Existing duplicates must be handled; uniqueness semantics depend on DB |
+| Conditional index | Frequently accessed small subset | Backend support and query predicate matching |
+| Expression index | Function-based lookup matching query expression | Backend/function restrictions |
+| PostgreSQL `GinIndex` | Supported JSON/array/search operators | Specialized operator choices and higher write/storage cost |
+
+Optional PostgreSQL-oriented examples; add only the ones justified by queries:
+
+```python
+from django.db.models import Q
+from django.db.models.functions import Lower
+
+# Place applicable definitions in Meta.indexes:
+models.Index(
+    fields=["customer", "-created_at"],
+    condition=Q(status="paid"),
+    name="order_paid_recent",
+)
+models.Index(Lower("email"), name="customer_email_lower") # on Customer
+
+# Matching expression lookup on Customer; inspect generated SQL and the plan.
+Customer.objects.alias(email_lower=Lower("email")).filter(email_lower="ada@example.com")
+```
+
+Do not assume `email__iexact` produces the same expression as a `Lower("email")` index across backends. Verify emitted SQL. See [Django database optimization](https://docs.djangoproject.com/en/5.2/topics/db/optimization/).
+
+### How do I apply an index and review what Django will run?
+
+```sh
+# Replace shop and migration number with your application's values.
+python manage.py makemigrations shop
+python manage.py sqlmigrate shop 0007
+python manage.py migrate shop
+```
+
+Review generated SQL, existing indexes, table size, available disk, lock behavior, and rollout compatibility. `makemigrations` creates the migration file; it does not apply the index. Keep schema state and Django's migration state aligned.
+
+For a large PostgreSQL table, replace the generated ordinary `AddIndex` with `AddIndexConcurrently` in a **non-atomic** migration, retaining the same index declaration in the model:
+
+```python
+from django.db import migrations, models
+from django.contrib.postgres.operations import AddIndexConcurrently
+
+class Migration(migrations.Migration):
+    atomic = False
+    dependencies = [("shop", "0006_previous")]
+    operations = [
+        AddIndexConcurrently(
+            model_name="order",
+            index=models.Index(
+                fields=["customer", "status", "-created_at", "-id"],
+                name="order_cust_stat_recent",
+            ),
+        ),
+    ]
+```
+
+This is an alternative to the ordinary operation, not a second migration creating the same index again. Concurrent creation reduces write blocking but needs more work/time; it is not zero-impact. A failed build can leave an invalid index requiring inspection and deliberate cleanup before retry. See [PostgreSQL migration operations](https://docs.djangoproject.com/en/5.2/ref/contrib/postgres/operations/).
+
+### What will an interviewer ask next?
+
+| Follow-up | Practical response |
+|---|---|
+| “Why didn't the index improve performance?” | Check actual SQL/plan, data distribution, stale statistics, small tables, wide result sets, and time outside SQL |
+| “Why this composite column order?” | Explain the real equality predicates, ordering/range requirements, and other queries you need to support |
+| “Why not index every field?” | Every extra index uses disk/cache and adds write and maintenance cost |
+| “What about N+1?” | An index does not remove repeated round trips; use appropriate `select_related`/`prefetch_related` and check query counts |
+| “Did you measure it?” | Compare representative before/after plans and endpoint latency; report only actual observations |
+| “Have you worked with indexing?” | Distinguish using existing indexes, defining migrations, and owning production tuning; do not invent ownership or numbers |
+
+For the full decision framework and honest recruiter-answer templates, see [database scaling and indexing questions](Database_CheatSheet.md#practical-sql-scaling-and-isolation-questions).
 
 ## Django database migrations
 

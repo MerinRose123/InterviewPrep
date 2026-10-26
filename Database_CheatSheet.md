@@ -23,6 +23,7 @@ Senior-level notes on relational databases, SQL, scaling, Redis, and MongoDB. SQ
 - [Does Redis use threads?](#does-redis-use-threads)
 - [MongoDB](#mongodb)
 - [Drawbacks of non-relational databases](#drawbacks-of-non-relational-databases)
+- [Practical SQL scaling and isolation questions](#practical-sql-scaling-and-isolation-questions)
 - [References](#references)
 
 ## Relational vs. non-relational databases
@@ -586,6 +587,225 @@ These are common tradeoffs, not universal limitations of every NoSQL product:
 
 Choose the model that makes the required invariants and access patterns easiest to implement and operate. NoSQL is not automatically faster or more scalable for every workload.
 
+## Practical SQL scaling and isolation questions
+
+### Coverage of the requested interview topics
+
+| Topic | Existing foundation | Practical material to study |
+|---|---|---|
+| Indexing | Index commands, tree structures, clustered/non-clustered | Query-to-index workflow below; [Django indexing](Django_Flask_CheatSheet.md#django-indexing-practical-interview-questions) |
+| Transactions | ACID and transfer example | Inventory race, external side effects, retry boundaries below |
+| Isolation | Four levels summarized | PostgreSQL-specific guarantees and write skew below |
+| Replication | Previously brief scaling/MongoDB notes | Dedicated replication section below |
+| Read replicas | Previously a brief scaling comparison | Freshness, routing, failover, Django usage below |
+| Partitioning | Concept and comparison | Range partition SQL and decision criteria below |
+| Sharding | Benefits, routing, joins | Shard-key choices, hot tenants, migration costs below |
+| NoSQL | SQL comparison, MongoDB, Redis | Workload-based selection and deep follow-ups below |
+
+### 1. How would you choose an index for a slow endpoint?
+
+**Scenario:** show a tenant's latest paid orders. Start with the actual SQL, frequency, data volume/distribution, requested columns, and latency. Remove N+1 queries/unnecessary rows before assuming an index is the only issue.
+
+```sql
+SELECT id, created_at, total
+FROM orders
+WHERE tenant_id = 42 AND status = 'paid'
+ORDER BY created_at DESC, id DESC
+LIMIT 50;
+
+-- Candidate for this workload; measure against existing indexes.
+CREATE INDEX CONCURRENTLY idx_orders_tenant_status_recent
+ON orders (tenant_id, status, created_at DESC, id DESC)
+INCLUDE (total);
+
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT id, created_at, total
+FROM orders
+WHERE tenant_id = 42 AND status = 'paid'
+ORDER BY created_at DESC, id DESC
+LIMIT 50;
+```
+
+Equality filters lead this candidate; the trailing keys support the requested order. `INCLUDE` carries payload rather than additional search keys. An index-only scan also depends on visibility information, not merely covering columns. Concurrent creation is PostgreSQL-specific and must run outside a transaction block.
+
+Compare before/after plans, actual vs. estimated row counts, buffers, sort work, and latency on representative data. A sequential scan can be correct for a small table or a query returning much of it. Check statistics and write overhead rather than forcing index scans. See [examining index usage](https://www.postgresql.org/docs/current/indexes-examine.html).
+
+| Candidate | Useful when | Cost / trap |
+|---|---|---|
+| Single-column B-tree | Frequent selective equality/range filter | May still need extra sorting/filtering |
+| Composite B-tree | Combined filter/order matches common access | Column order matters; extra size/write work |
+| Partial index | Small, frequently queried subset | Query predicate must imply its condition |
+| Expression index | Query filters an expression, e.g. `lower(email)` | Query expression must match planner requirements |
+| GIN | Supported JSONB/array/full-text operators | Write/storage overhead; not a general sort index |
+| BRIN | Very large physically correlated data, e.g. append-time | Lossy ranges with rechecks; weak for random distributions |
+
+**Dig deeper:** why might `LIKE '%term%'` not use a normal B-tree? Why can an index on a boolean help for a rare subset but not the majority? Can one composite index replace two others for every query? How much does the index increase write latency and storage?
+
+### 2. Why doesn't putting read-then-write code inside a transaction prevent overselling?
+
+Two transactions can both read stock 1 before either writes. Atomicity alone does not enforce the business rule across concurrent transactions.
+
+```sql
+BEGIN;
+UPDATE inventory
+SET available = available - 1
+WHERE product_id = 7 AND available > 0
+RETURNING product_id;
+-- If no row returned, abort the reservation path.
+-- Insert the matching reservation only after successful decrement.
+COMMIT;
+```
+
+For a more complex decision, lock the relevant rows with `SELECT ... FOR UPDATE`, validate, update, then commit promptly. A conditional update is simpler when the invariant fits one statement. Acquire multiple locks consistently. Retry an entire deadlocked/serialization-failed transaction with bounded attempts and fresh reads.
+
+**Dig deeper:** transaction rollback cannot undo an email or external payment. Use stable idempotency keys, after-commit scheduling when loss is acceptable, or an outbox when delivery must survive crashes. A network failure during commit can leave the client uncertain whether it committed; resolve by operation identity instead of blindly repeating business effects.
+
+### 3. What isolation level would you choose in PostgreSQL?
+
+| PostgreSQL level | Read snapshot | Practical remaining issue |
+|---|---|---|
+| Read uncommitted | Behaves as read committed | No extra dirty-read behavior in PostgreSQL |
+| Read committed | New snapshot per statement | Two reads may differ; multi-statement decisions can race |
+| Repeatable read | Stable transaction snapshot | Prevents phantoms in PostgreSQL, but write skew remains possible |
+| Serializable | Committed results equivalent to some serial execution | Applications must handle serialization failures |
+
+```sql
+BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+-- Read invariant-related data and perform its updates here.
+COMMIT; -- serialization failure can occur; retry the whole transaction
+```
+
+**Write-skew scenario:** two doctors each see two on-call doctors, then update different rows to go off call. Snapshot isolation can allow both changes. Protect the shared invariant through appropriate common locks/modeling or serializable isolation with retries. Do not generalize these exact guarantees to every engine. See [PostgreSQL isolation](https://www.postgresql.org/docs/current/transaction-iso.html).
+
+**Dig deeper:** row locks protect selected rows, not every future row matching an arbitrary predicate. How would you reproduce the anomaly with two sessions? Why must retry encompass the decision reads rather than only the failed update?
+
+### 4. What is replication, and how is it different from sharding or backup?
+
+Replication maintains copies of data; sharding distributes different subsets. A backup provides a recoverable historical copy—replicas can replay accidental deletes too.
+
+| Replication choice | Advantage | Tradeoff |
+|---|---|---|
+| Asynchronous | Lower commit-path latency | Lag; failover can lose recently acknowledged writes |
+| Synchronous | Required standby acknowledgements strengthen durability | Commit latency and availability depend on configured standbys |
+| Physical | Replays low-level changes to maintain a standby | Closely tied to engine/version and whole-instance layout |
+| Logical | Selected tables/change streams and integration flexibility | Schema/DDL and conflict handling require planning |
+
+Synchronous acknowledgement is not automatically proof that a standby query can already see the row; acknowledgement/replay settings matter. Availability needs health detection, promotion, routing, and fencing of an old primary. Monitor lag and retained logs; a stalled replication slot can exhaust disk. See [PostgreSQL standby operation](https://www.postgresql.org/docs/current/warm-standby.html).
+
+**Dig deeper:** define RPO (tolerable data loss) and RTO (time to restore service). How do you prevent split brain? How do applications reconnect after promotion? Replication and tested backups address different failures.
+
+### 5. When should you add read replicas? What breaks after a write?
+
+**Scenario:** order creation commits on the primary, but the next GET uses a lagging replica and returns 404. This is a read-after-write consistency problem, not proof that the write failed.
+
+| Read | Suggested route | Reason |
+|---|---|---|
+| Public catalog / lag-tolerant reports | Replica | Freshness tolerance allows read offload |
+| Immediate read after checkout | Primary, or verified replay-aware routing | Must observe committed result |
+| Inventory allocation / authorization-critical current state | Authoritative primary transaction | Staleness can break correctness |
+| Heavy analytics | Dedicated replica/warehouse as appropriate | Protect OLTP; measure impact and lag |
+
+Primary stickiness for a fixed time reduces failures but does not guarantee freshness under arbitrary lag. Replay-position-aware routing can wait for the relevant log position, with a deadline/fallback. Read replicas generally do not increase the primary's write capacity.
+
+Django routing example, assuming `default` is the primary and `replica` is configured:
+
+```python
+order = Order.objects.using("default").create(customer_id=42)
+fresh = Order.objects.using("default").get(pk=order.pk)
+report = Order.objects.using("replica").filter(status="paid")[:100]
+```
+
+Routers can centralize policy, but Django does not automatically solve replication lag or cross-database transactions/relations. See [Django multiple databases](https://docs.djangoproject.com/en/5.2/topics/db/multi-db/).
+
+**Dig deeper:** what happens when a replica is promoted? How do you remove an unhealthy replica from routing? Could long reports delay replay or be cancelled on a standby?
+
+### 6. When should you choose indexing, partitioning, replicas, or sharding?
+
+| Observed problem | First candidate | Why / limitation |
+|---|---|---|
+| Selective query scans/sorts too much | Query/schema/index tuning | Avoid distributing an inefficient query |
+| One large time-series table; retention deletes costly | Time-based partitioning | Lifecycle management and pruning; not independent node capacity |
+| Reads saturate primary; staleness acceptable | Read replicas, possibly caching | Adds read capacity; leaves write bottleneck |
+| Temporary resource shortage within one-node headroom | Vertical scaling plus tuning | Simpler; hardware/cost ceiling remains |
+| Sustained writes/storage exceed one node after tuning | Sharding/distributed SQL evaluation | Distributes capacity; operational and consistency costs |
+| One hot account or tenant dominates | Isolate/split that workload deliberately | More random shards may leave the same hot key bottleneck |
+
+There is no universal row-count threshold. Base the choice on measured CPU/I/O/storage, growth, maintenance time, freshness, and operational constraints.
+
+### 7. Show partitioning syntax and explain when it helps
+
+```sql
+CREATE TABLE events (
+    tenant_id BIGINT NOT NULL,
+    occurred_at TIMESTAMPTZ NOT NULL,
+    event_id BIGINT NOT NULL,
+    payload JSONB,
+    PRIMARY KEY (occurred_at, event_id)
+) PARTITION BY RANGE (occurred_at);
+
+CREATE TABLE events_2026_10 PARTITION OF events
+FOR VALUES FROM ('2026-10-01 00:00:00+00') TO ('2026-11-01 00:00:00+00');
+
+CREATE INDEX idx_events_tenant_time ON events (tenant_id, occurred_at);
+
+EXPLAIN SELECT event_id FROM events
+WHERE occurred_at >= TIMESTAMPTZ '2026-10-01 00:00:00+00'
+  AND occurred_at <  TIMESTAMPTZ '2026-11-01 00:00:00+00';
+```
+
+Time-filtered queries can prune irrelevant partitions; retention can remove old partitions without deleting each row. Automate future partition creation and decide what happens to out-of-range inserts. Excess partition counts increase planning/maintenance overhead. In PostgreSQL, partitioned-table unique/primary constraints must include the partition key; this example does not enforce global uniqueness of `event_id` alone. See [table partitioning](https://www.postgresql.org/docs/current/ddl-partitioning.html).
+
+**Dig deeper:** no time predicate means little/no time pruning. Indexes still matter inside partitions. A date partition within one instance still shares that instance's CPU/I/O ceiling. A shard can itself contain time partitions.
+
+### 8. What is the advantage of sharding, and what makes it hard?
+
+**Interview answer:** sharding spreads different rows across independently provisioned nodes, increasing aggregate storage and write throughput when work routes well. It can isolate tenant workloads and failure impact. It costs routing, rebalancing, cross-shard query/transaction complexity, and coordinated operations. More shards do not automatically give redundancy; each shard needs its own durability/availability plan.
+
+| Shard-key approach | Advantage | Risk |
+|---|---|---|
+| Tenant ID | Tenant-local queries/joins and isolation | Huge tenants cause imbalance; need split/dedicated-shard plan |
+| Hash of a high-cardinality key | More even distribution | Range scans and unrelated lookups can fan out |
+| Time/range | Efficient range routing | Monotonic writes can overload the newest shard |
+| Directory-based tenant placement | Move/select placements explicitly | Routing metadata must be reliable and versioned |
+
+```python
+# Interview illustration only: fixed-modulo routing is hard to resize safely.
+shard_id = stable_hash(tenant_id) % shard_count
+# All tenant-related tables must follow a compatible placement policy.
+```
+
+Do not use Python's process-randomized `hash(str_key)` as a cross-process stable routing hash. Production systems need persistent placement metadata or a deliberate hash/range scheme. Changing `shard_count` in this illustration remaps many keys.
+
+**Dig deeper:** a query lacking the shard key may hit every shard. Global pagination/top-K needs merge logic; uniqueness and foreign keys may be only shard-local. Resharding needs snapshot/backfill, change capture, consistency verification, controlled cutover, and recovery from partial migration. Cross-shard workflows need product-supported distributed transactions or explicit compensating/idempotent workflows.
+
+### 9. When would you choose NoSQL for this workload?
+
+| Workload | Candidate | What to defend |
+|---|---|---|
+| Payments/orders with relationships and constraints | Relational DB | Transaction boundaries, indexes, growth strategy |
+| Bounded aggregate documents read together | Document DB | Embedding limits, indexes, duplication/update policy |
+| Cache, rate limit counters, ephemeral lookups | Redis | Persistence policy, expiry, memory, failure fallback |
+| High-volume key/range access across nodes | Wide-column DB | Partition-key design, query restrictions, consistency settings |
+| Rich multi-hop relationship traversal | Graph DB | Traversal patterns and operational/query cost |
+
+NoSQL is not “no schema,” “no indexing,” or “no transactions.” Decide from the product's actual guarantees. SQL can store JSON; document databases still require schema evolution and query/index design. Flexible storage does not fix an unknown access pattern.
+
+**Dig deeper:** distinguish replication lag from transaction isolation. CAP concerns the consistency/availability choice during a network partition; it does not mean casually choosing any two of three properties for every request. If introducing a second database, who owns synchronization, reconciliation, backups, and observability?
+
+### 10. How should I answer “Have you worked with indexing?”
+
+**First audit your experience:** did you add `db_index`, `Meta.indexes`, a unique constraint, a manual SQL index, inspect a plan, or diagnose a query using an existing index? Django-created indexes are real database indexes, but using an automatically indexed primary key is different from personally designing and validating an index.
+
+Use the version that matches your work:
+
+- **Designed and measured one:** “I optimized [real endpoint/query]. It filtered by [columns] and ordered by [columns]. I added [actual index] through [migration/SQL], compared [actual plan/latency], and checked [write/storage/deployment cost].” Use only measured numbers you actually have.
+- **Used Django indexes, limited tuning:** “I have defined/used database indexes through Django's models and migrations. My experience with production execution-plan tuning is limited. I can explain the query pattern and why that index was chosen.” Adjust “defined” if you only used them.
+- **No direct experience yet:** “I haven't owned production index tuning yet. I understand how Django declares indexes and how to validate them, and I've practiced it locally.” Say the practice part only after doing it.
+
+**Practice exercise:** seed representative local data, capture the ORM SQL/plan, introduce a composite index for a real filter/order, compare with the same data and query, then measure insert/update overhead. A tiny empty table is not meaningful performance evidence.
+
+Prepare for: Why those columns? Why that order? Why not every column? How did you know it was used? Did it slow writes? How did you deploy it without unacceptable blocking? Could it replace an existing index?
+
 ## References
 
 - [PostgreSQL window functions](https://www.postgresql.org/docs/current/tutorial-window.html)
@@ -615,3 +835,8 @@ Choose the model that makes the required invariants and access patterns easiest 
 - [Redis latency and threading model](https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency/)
 - [Redis transactions](https://redis.io/docs/latest/develop/using-commands/transactions/)
 - [Redis pipelining](https://redis.io/docs/latest/develop/using-commands/pipelining/)
+
+- [PostgreSQL standby replication](https://www.postgresql.org/docs/current/warm-standby.html)
+- [PostgreSQL examining index usage](https://www.postgresql.org/docs/current/indexes-examine.html)
+- [Django model indexes](https://docs.djangoproject.com/en/5.2/ref/models/indexes/)
+- [Django multiple databases](https://docs.djangoproject.com/en/5.2/topics/db/multi-db/)
