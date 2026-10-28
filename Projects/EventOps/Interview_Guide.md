@@ -1,6 +1,8 @@
-# EventOps: architecture, implementation, and contributions
+# EventOps: project architecture, implementation, and contributions
 
 **InApp | September 2019-November 2021 | Merin Rose Tom**
+
+[Interview questions and answers](Interview_Questions_and_Answers.md)
 
 ## 1. Project architecture
 
@@ -13,23 +15,23 @@ flowchart LR
     subgraph BROWSER[User browser]
         direction TB
         ANGULAR[Angular application]
-        SCREENS[Users / Spaces / Equipment<br/>Availability / Events / Reports]
+        SCREENS[EventOps UI]
         SCREENS --- ANGULAR
     end
 
-    subgraph SERVER[Application server - logical backend boundary]
+    subgraph SERVER[Application server]
         direction TB
-        NGINX[Nginx<br/>Request routing]
+        NGINX[Nginx]
 
-        subgraph SERVICES[Python backend microservices - Docker containers]
+        subgraph SERVICES[Python microservices - Docker]
             direction TB
-            USERS[User management service<br/>Users / roles / user availability]
-            SPACE[Space management service<br/>Spaces / space availability]
-            EQUIP[Equipment management service<br/>Equipment / equipment availability]
-            SCHEDULE[Event and scheduling service<br/>Events / resource allocation / availability checks]
-            WORKFLOW[Workflow service<br/>Conditional tasks / rule-based actions]
-            NOTIFY[Notification service<br/>Email notifications]
-            REPORT[Reporting service<br/>Event report requests]
+            USERS[Users]
+            SPACE[Spaces]
+            EQUIP[Equipment]
+            SCHEDULE[Scheduling]
+            WORKFLOW[Workflows]
+            NOTIFY[Notifications]
+            REPORT[Reports]
         end
 
         NGINX --> USERS
@@ -40,39 +42,40 @@ flowchart LR
         NGINX --> NOTIFY
         NGINX --> REPORT
 
-        DATA[Shared data access<br/>Common PostgreSQL database]
+        DATA[Shared data access]
         USERS --> DATA
         SPACE --> DATA
         EQUIP --> DATA
         SCHEDULE --> DATA
         WORKFLOW --> DATA
-        NOTIFY -. delivery data if persisted .-> DATA
+        NOTIFY -.-> DATA
         REPORT --> DATA
 
         subgraph BACKGROUND[Background processing]
-            REDIS[Redis<br/>Celery integration - exact role to verify]
+            REDIS[Redis]
             CELERY[Celery workers]
-            PDF[PDF generation task<br/>Populate HTML template / render PDF]
-            REDIS -. task infrastructure .- CELERY
+            PDF[HTML to PDF]
+            REDIS -.-> CELERY
+            BEAT[Celery Beat] -->|Periodic tasks| CELERY
             CELERY --> PDF
         end
-        REPORT -->|Dispatch PDF generation| CELERY
+        REPORT -->|PDF task| CELERY
         CELERY --> DATA
-        WORKFLOW -. notification integration .-> NOTIFY
+        WORKFLOW -.-> NOTIFY
     end
 
     subgraph DATABASE[Database boundary]
-        PG[(Common PostgreSQL database)]
-        TENANT[Tenant schemas<br/>Tentative recollection]
+        PG[(PostgreSQL)]
+        TENANT[Django multi-tenancy]
         PG --- TENANT
     end
 
-    CAL[Out-of-office calendar<br/>Source / provider unspecified]
-    MAIL[Email delivery system<br/>Provider unspecified]
+    CAL[Out-of-office calendar]
+    MAIL[SendGrid]
 
-    ANGULAR -->|HTTP API requests| NGINX
+    ANGULAR -->|HTTP API| NGINX
     DATA --> PG
-    SCHEDULE -->|Participant availability| CAL
+    SCHEDULE --> CAL
     NOTIFY --> MAIL
 
     classDef frontend fill:#dbeafe,stroke:#2563eb,color:#172554;
@@ -84,12 +87,12 @@ flowchart LR
     class NGINX gateway;
     class USERS,SPACE,EQUIP,SCHEDULE,WORKFLOW,NOTIFY,REPORT service;
     class PG,TENANT database;
-    class REDIS,CELERY,PDF background;
+    class REDIS,CELERY,BEAT,PDF background;
 ```
 
 **Reading the diagram:** the browser contains Angular; the server contains Nginx, backend services, and background processing; PostgreSQL is shown as a separate database boundary. The server box groups backend responsibilities and does not assert that every component ran on one physical machine. The data-access box summarizes service-to-database connections; it is not an additional deployed service.
 
-**Reconstruction scope:** user, space, equipment, availability, scheduling, email, and reporting capabilities are confirmed. They are shown as functional microservice boundaries to explain the architecture requested here. Their exact original deployment names, one-container-per-service mapping, and split between Django and Flask remain unverified. Workflow and notification connections shown with dotted lines are illustrative. Redis's exact role and schema-level tenancy also remain uncertain. Calendar and mail boxes indicate integration boundaries, not confirmed external providers.
+**Reconstruction scope:** user, space, equipment, availability, scheduling, email, and reporting capabilities are confirmed. They are shown as functional microservice boundaries to explain the architecture requested here. Their exact original deployment names, one-container-per-service mapping, and split between Django and Flask remain unverified. Workflow and notification connections shown with dotted lines are illustrative. SendGrid email delivery, Django multi-tenancy, and Celery Beat periodic scheduling are confirmed. Redis's exact role and schema-level isolation remain uncertain. The calendar provider is unspecified.
 
 ### Service responsibilities and routing
 
@@ -153,6 +156,9 @@ Tenant isolation was probably implemented through separate PostgreSQL schemas wi
 | Extracted backend services | Python, Flask | Microservices introduced during the migration |
 | Persistence | PostgreSQL | Common database used by backend services |
 | Background execution | Celery | Asynchronous work, including PDF report generation |
+| Periodic scheduling | Celery Beat | Dispatch periodic tasks for execution by Celery workers |
+| Email delivery | SendGrid | Send automated email notifications |
+| Tenant architecture | Django multi-tenancy | Multi-tenant application; exact package and schema mechanism unverified |
 | Background infrastructure | Redis | Used with Celery; exact broker/result-backend configuration not recalled |
 | Containers | Docker | Consistent packaging and runtime for backend services |
 | Traffic routing | Nginx | Routing requests to backend components |
@@ -160,7 +166,7 @@ Tenant isolation was probably implemented through separate PostgreSQL schemas wi
 | Reporting template | HTML populated with event contents | Reusable report structure separated from event-specific data |
 | PDF walkthrough | WeasyPrint | Concrete implementation example based on Merin's personal use; historical EventOps renderer unverified |
 
-The hosting provider, scheduler implementation, email provider, authentication mechanism, framework versions, and CI/CD configuration remain unspecified. Celery use alone does not identify Celery Beat, and Docker use alone does not identify a container orchestrator.
+Celery Beat handled periodic scheduling and SendGrid handled email sending. The hosting provider, authentication mechanism, framework versions, and CI/CD configuration remain unspecified. Docker use alone does not identify a container orchestrator.
 
 ## 3. Product purpose and scope
 
@@ -186,7 +192,7 @@ The [official EventOPS website](https://eventops.com/) supplies current product 
 
 ## 4. Backend migration: Django monolith to Flask services
 
-Merin was a main contributor to converting the original Django application toward Flask-based microservices. Docker supported service packaging and Nginx provided routing. The documented goals were modular development and scalability; the precise original bottleneck and individual extracted service names remain to be recalled.
+Merin was a main contributor to converting the original Django application toward Flask-based microservices. Docker supported service packaging and Nginx mainly provided routing. The documented goals were modular development and scalability; the precise original bottleneck and individual extracted service names remain to be recalled.
 
 ### Application boundaries and contracts
 
@@ -200,7 +206,13 @@ The backend services used a common PostgreSQL database. Exact shared tables and 
 
 ### Packaging and routing
 
-Docker packaged service code with its runtime dependencies. Nginx routed incoming requests to backend components. Authentication and permission checks still belonged in the application or an explicitly configured identity layer; routing alone did not establish user authorization.
+Docker packaged service code with its runtime dependencies. Nginx mainly routed incoming requests to different backend components; replica load balancing is not a confirmed EventOps use. Authentication and permission checks still belonged in the application or an explicitly configured identity layer; routing alone did not establish user authorization.
+
+### Inter-service communication
+
+Nginx primarily routed frontend requests to the appropriate service. Merin tentatively recalls REST calls for inter-service communication. These are different paths: a browser request reaching a service through Nginx does not establish that every internal call also passed through Nginx.
+
+Synchronous REST lets a service obtain an immediate answer from another capability, at the cost of network latency and dependency failures. Celery supported work that could execute later, including PDF generation. The exact internal HTTP endpoints, clients, authentication propagation, tenant propagation, and timeout/retry settings remain unverified. The shared database is confirmed, but direct access by one service to another capability's tables is not established.
 
 ### Migration mechanics: reference explanation
 
@@ -244,7 +256,9 @@ EventOps included rule-based triggers, conditional task generation, and automate
 | Action | Perform business work | Create an assigned follow-up task |
 | Notification | Communicate the result | Email the responsible person |
 
-The example illustrates the model; it is not a recalled EventOps rule. The real rule format, configuration mechanism, recipients, and provider remain unspecified.
+The example illustrates the model; it is not a recalled EventOps rule. SendGrid sent the emails. The real rule format, configuration mechanism, recipients, and SendGrid API/SMTP integration details remain unspecified.
+
+SendGrid provided email delivery. The notification capability prepared the message and handed it to SendGrid; whether the integration used its HTTP API or SMTP, and whether delivery webhooks were tracked, remain unspecified.
 
 Business state changes, task generation, and email delivery have different failure boundaries. An email failure need not undo an already-created business task. Retrying notification delivery should not recreate business work unintentionally.
 
@@ -256,11 +270,11 @@ Repeated execution requires an identity for each logical action occurrence and s
 
 ## 7. Background processing with Celery and Redis
 
-Celery and Redis supported background processing. PDF generation is a confirmed Celery workload. The assignment of email work to Celery, Redis's exact role, retry settings, and acknowledgment settings have not been recalled.
+Celery and Redis supported background processing, and Celery Beat scheduled periodic tasks. PDF generation is a confirmed Celery workload. The assignment of email work to Celery, Redis's exact role, retry settings, and acknowledgment settings have not been recalled.
 
 Background execution separates request handling from slower work. It introduces queue waiting time, worker execution time, and a later success/failure outcome. Celery relocates work; it does not make the PDF renderer intrinsically faster.
 
-Scheduling and execution are different responsibilities. A scheduler decides when work becomes due; Celery workers execute tasks. A broker carries tasks, while a result backend can store task outcomes. The actual EventOps configuration of these responsibilities remains unspecified. See the [Celery task guide](https://docs.celeryq.dev/en/stable/userguide/tasks.html).
+Celery Beat determined when periodic work became due and dispatched it for Celery workers to execute. Beat was the scheduler; workers performed the work. A broker carries tasks, while a result backend can store task outcomes. The exact Redis role, schedule storage, and periodic task list remain unspecified. See the [Celery task guide](https://docs.celeryq.dev/en/stable/userguide/tasks.html).
 
 ## 8. Detailed event PDF reporting
 
@@ -315,7 +329,7 @@ The common database served the backend services. This describes the database bou
 
 ### Tentative schema-per-tenant model
 
-Merin recalls schema-level tenant separation but is uncertain. If confirmed, the conceptual structure would be:
+EventOps used a Django-based multi-tenant architecture, now confirmed by Merin. The exact package name is not identified. Schema-level tenant separation remains a tentative recollection; if confirmed, the conceptual structure would be:
 
 ```text
 Common PostgreSQL database
@@ -413,140 +427,14 @@ Operational diagnosis separates request latency, queue waiting time, task durati
 
 ## 14. Implementation notes and sources
 
-Confirmed details and clearly labeled reference explanations are kept separate. Remaining unknowns are the exact deployed service boundaries/names, table/write ownership, tenancy package/context selection, calendar integration, scheduler, historical renderer/template engine, email provider, hosting, authentication, rollout, and exact coverage scope. No private EventOps source code has been inspected.
+Confirmed details and clearly labeled reference explanations are kept separate. Remaining unknowns are the exact deployed service boundaries/names, table/write ownership, inter-service REST details (tentative recollection), tenancy package/context selection, calendar integration, Beat schedule configuration, historical renderer/template engine, SendGrid integration method, hosting, authentication, rollout, and exact coverage scope. No private EventOps source code has been inspected.
 
 The 16 GB CSV pipeline, shared LRU cache, piracy analytics, and Oracle/OCI work are not attributed to EventOps without evidence.
 
 Sources:
 
-- Merin's direct clarifications: corrected dates, stack, common database, tentative schema tenancy, migration contribution, out-of-office scheduling, Celery PDF tasks, populated HTML templates, personal WeasyPrint use, pytest/mocking, and 40%-70% coverage.
+- Merin's direct clarifications: corrected dates, stack, common database, confirmed Django multi-tenancy with tentative schema isolation, SendGrid, Celery Beat, Nginx mainly for routing, tentative inter-service REST recollection, migration contribution, out-of-office scheduling, Celery PDF tasks, populated HTML templates, personal WeasyPrint use, pytest/mocking, and 40%-70% coverage.
 - [Resume](/Users/merin/workspace/printMyCV/MerinRoseTomSSE7_N.pdf) and [LinkedIn export](/Users/merin/Downloads/LinkedinProfile.pdf): role history, EventOps capabilities, recognition, and career statements.
 - Supplied [portfolio](https://merinrose123.github.io/merin-rose-tom/) excerpt: product scope, architecture, frontend, testing, workflows, RBAC, and approximate outcomes. Direct website retrieval was unavailable; the supplied text was used.
 - [Official EventOPS website](https://eventops.com/): public product context, accessed 28 October 2026.
 - Framework documentation linked within the relevant technical sections supports reference explanations; it does not establish historical versions or implementation.
-
-## 15. Interview preparation
-
-The project description above is followed here by short introductions and interview-specific questions. Design answers describe possible approaches where historical details remain unknown.
-
-
-### 30-second introduction
-
-> I worked on EventOps at InApp from September 2019 to November 2021. It managed organizational event operations such as people, spaces, equipment, budgets, and reporting. I was a main contributor to migrating its Django monolith toward Flask-based microservices using Docker and Nginx. I also worked on availability-aware scheduling, email notifications, detailed PDF reports, and pytest-based testing, increasing coverage from 40% to 70%.
-
-### Two-minute introduction
-
-> EventOps was an event-management system I worked on across my trainee and software-engineer roles at InApp. It supported event operations including spaces, equipment, people, budgets, and reporting, with conditional workflows and role-based access.
->
-> It originally used a Django monolith. I was a main contributor to moving toward Flask-based microservices. Our stack included Angular on the frontend, Python with Django and Flask on the backend, PostgreSQL for persistence, Celery and Redis for background processing, and Docker with Nginx for containerized services and routing.
->
-> My feature work included email notifications, scheduling that considered participant availability, and PDF reports containing extensive event details. Another concrete contribution was improving the pytest-based unit testing framework. Coverage had been limited at about 40%; I expanded important-area coverage, using techniques such as mocking, and brought it to 70%, an increase of 30 percentage points. The project also earned me CEO appreciation.
->
-> For a deeper technical discussion, I can explain the migration, how an event workflow connected to background processing, or how I made the application more testable.
-
-### Interview questions and answers
-
-
-#### 1. What was EventOps, and what did you do?
-
-**Answer:** I worked on EventOps at InApp from September 2019 to November 2021. It managed organizational event operations including people, spaces, equipment, budgets, and reporting. I was a main contributor to migrating the Django monolith toward Flask microservices, and worked on email notifications, availability-aware scheduling, detailed PDF reports, and testing. My pytest improvements increased coverage from 40% to 70%.
-
-#### 2. Explain the architecture end to end.
-
-**Answer:** The frontend was Angular. The backend began as a Django monolith and evolved toward Flask microservices, packaged with Docker and routed through Nginx. PostgreSQL stored application data, and Celery with Redis supported background processing. I would then map one actual route and task. The services used a common PostgreSQL database, and PDF generation ran as a Celery task. Tenant isolation was probably schema based according to my recollection; exact service/table ownership and context handling need confirmation.
-
-#### 3. What was your technology stack?
-
-**Answer:** Python, Django and Flask for the backend; Angular and JavaScript for the frontend; PostgreSQL for persistence; Celery and Redis for background processing; Docker for containerization; Nginx for routing; and pytest for testing. I should explain each tool through the feature or migration work I personally handled.
-
-#### 4. Why perform work asynchronously?
-
-**Answer:** We used Celery and Redis for background processing. PDF report generation ran as a Celery task, moving that work out of the synchronous execution path. Email task assignments still need confirmation. Asynchronous work keeps suitable long-running operations out of the request path, but requires explicit failure handling and visibility.
-
-#### 5. How does a rule-based trigger work?
-
-**Answer:** A trigger identifies a business occurrence, conditions decide whether it qualifies, and an action specifies the resulting work. A useful walkthrough names the original event, relevant old/new values, rule scope, and action. Whether EventOps represented these as configurable data or explicit code needs confirmation.
-
-#### 6. How would you avoid duplicate actions?
-
-**Design answer:** Define the identity of one logical occurrence, enforce uniqueness when recording execution, and make internal state changes safe to repeat. Include the occurrence or schedule version so later legitimate reminders are not suppressed. External email delivery still has an ambiguity window unless the provider supports suitable deduplication. I should separately describe what EventOps actually implemented.
-
-#### 7. What if the database update succeeds but job publication fails?
-
-**Design answer:** Dispatch after commit avoids jobs observing rolled-back state, but does not eliminate the commit-to-publication gap. A durable outbox written in the same transaction and retried by a dispatcher is one approach. I would not claim EventOps had an outbox without evidence. [Django transaction reference](https://docs.djangoproject.com/en/5.2/topics/db/transactions/).
-
-#### 8. How did you implement RBAC?
-
-**Answer:** RBAC is an explicit EventOps contribution. A complete personal answer needs the real roles, permission storage, enforcement point, and one allowed/denied example. The essential design principle is backend enforcement for the operation and object, in the correct tenant context; UI visibility is only a presentation concern.
-
-#### 9. How did you prevent cross-tenant access?
-
-**Answer:** We used a common PostgreSQL database, and my recollection is that tenants were separated by schema, although I need to confirm that detail. Under that model, the correct schema must be selected for both requests and background tasks, with context reset on reused connections. I should explain the actual library and a real isolation test before claiming those implementation mechanisms.
-
-#### 10. What happens when an event is rescheduled or cancelled?
-
-**Design answer:** Execution should check the current event state and schedule identity before acting. A reschedule can invalidate an older occurrence and create a new one; cancellation should suppress obsolete work. The scheduler and worker need compatible behavior even if old jobs remain queued. EventOps' actual mechanism is pending confirmation.
-
-#### 11. How would you handle email failures?
-
-**Design answer:** Classify transient and permanent failures, use timeouts and bounded retry delays, record attempts, and make exhausted failures visible. An accepted API request does not prove inbox delivery. Handle uncertain acceptance separately because retries may duplicate mail. Identify the real provider and behavior before making this a project claim.
-
-#### 12. Did EventOps use Celery and Redis?
-
-**Answer:** Yes. We used Celery and Redis for background processing. Celery is the task-processing framework; Redis can serve roles such as broker or result backend, and I need to identify its actual configuration in our system. Retry and acknowledgment choices determine failure behavior; naming the tools alone does not establish those guarantees. [Celery task reference](https://docs.celeryq.dev/en/stable/userguide/tasks.html).
-
-#### 13. What did you improve in testing?
-
-**Answer:** Initial coverage was around 40%. I developed and improved the pytest-based unit testing framework, expanded tests over important areas, and used mocking to isolate dependencies. Coverage reached 70%, a 30 percentage-point increase. I would substantiate this with one real tested module, the dependency mocked, and the edge case asserted. The portfolio also records Django multi-tenancy testing.
-
-#### 14. What tests would you prioritize for automation?
-
-**Design answer:** Conditions that should and should not fire; permission and tenant denial; cancelled or rescheduled work; duplicate execution; provider failures; and transaction rollback. Test the business logic in isolation, then verify request/worker behavior through appropriate integration tests. Browser tests cover UI behavior that a backend client cannot. [Django testing reference](https://docs.djangoproject.com/en/5.2/topics/testing/tools/).
-
-#### 15. How was the 20% improvement measured?
-
-**Answer:** The resume reports a 20% reduction in manual event-management effort. I need to identify the baseline, comparison workflow, and whether this was measured or estimated. Until then, I can explain which manual steps automation removed, but should not invent a measurement study.
-
-#### 16. Was this a microservices architecture?
-
-**Answer:** Yes. It started as a Django monolith, and I was a main contributor to migrating toward Flask-based microservices using Docker and Nginx routing. I should identify actual extracted services and their data/API contracts to explain the architecture. Separate containers by themselves do not establish independent service ownership.
-
-#### 17. What was your hardest technical challenge?
-
-**Answer framework:** The monolith-to-microservices migration is a confirmed engineering challenge I contributed to. I can structure the answer around an extracted capability, existing dependencies, API/data compatibility, my implementation changes, and verification. I still need a specific remembered obstacle or defect; I should not invent a production incident.
-
-#### 18. How would you scale the application?
-
-**Design answer:** First measure whether requests, database queries, queue delay, execution time, or provider limits are the bottleneck. Improve query shape and indexes where needed, separate suitable background workloads, and increase concurrency within downstream limits. Tenant fairness matters if one customer's work can consume the entire queue. This is a design discussion, not a claim about changes I delivered.
-
-#### 19. What would you improve today?
-
-**Design answer:** I would assess existing gaps before proposing changes. Candidate improvements include clearer execution history, stronger duplicate suppression, safer dispatch, tenant-isolation regression tests, and visibility into overdue work. I would prioritize the observed failure or support burden and avoid claiming those capabilities were absent without evidence.
-
-#### 20. How do you separate your contribution from the team's?
-
-**Answer:** My confirmed work includes a major contribution to the Django-to-Flask microservices migration, email notifications, participant-availability-aware scheduling, detailed PDF reports, and pytest framework improvements using mocking. I can quantify testing as 40% to 70% coverage. I would name the exact module and change I owned, and distinguish shared architecture decisions from my implementation.
-
-#### 21. Why migrate from Django to Flask?
-
-**Answer:** I contributed to moving a Django monolith toward Flask microservices for a more modular backend; scalability and modular development are documented goals. Flask suited the chosen service approach, but it is not inherently more scalable than Django. A strong answer needs the actual business capability extracted and the original maintenance or delivery problem. Django can also power microservices, and Flask can also be used in a monolith.
-
-#### 22. What did Docker and Nginx contribute?
-
-**Answer:** Docker packaged backend services into consistent runtime units, while Nginx routed incoming requests to the appropriate backend. I should support this with a real service and route from the migration. Neither Docker nor Nginx automatically provides service ownership, correct authorization, database isolation, or high availability.
-
-#### 23. How did participant availability affect scheduling?
-
-**Answer:** Our scheduling feature checked participant availability from an out-of-office calendar. I need to recall the calendar integration and whether we searched for slots or validated a selected slot. An out-of-office check alone does not establish absence of other meetings. For a conceptual overlap check, two half-open intervals overlap if each starts before the other ends. Concurrent scheduling requires protection beyond a pre-save availability query; the mechanism we used remains to be recalled.
-
-#### 24. How did PDF generation work?
-
-**Answer:** I worked on PDF reports containing extensive event details. A complete walkthrough should identify the requested event, authorization, data assembly, PDF library, and how users received the file. PDF generation ran as a Celery task. We populated an HTML template with event contents and converted it to PDF. I use WeasyPrint personally and can explain its implementation, but the historical EventOps renderer is not verified. I should not attach the separate 16 GB CSV pipeline to this story without evidence.
-
-#### 25. What does 40% to 70% coverage mean?
-
-**Answer:** It is an increase of 30 percentage points, or 75% relative to the original coverage. In interviews I would say “from 40% to 70%” to avoid ambiguity. I improved the pytest framework, used mocking, and expanded important-area tests. I should also explain the measured scope and one meaningful regression case, because coverage alone does not establish correctness.
-
-#### 26. How did you manage transactions after splitting services?
-
-**Answer:** The backend services used a common PostgreSQL database, so I should discuss the actual table/write ownership and migration coupling. A common database does not automatically make writes from separate service requests one atomic transaction. I need to recall the real transaction boundaries. Outbox patterns or compensation are possible designs, not confirmed EventOps features.

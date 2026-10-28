@@ -4,7 +4,7 @@ Detailed project narratives covering the product, architecture, technology choic
 
 | Project | Guide | Status |
 |---|---|---|
-| EventOps / EventOPS | [Interview guide](EventOps/Interview_Guide.md) | Personalized guide; confirmed stack, migration, features, and 40%-70% coverage result; detailed boundaries pending |
+| EventOps / EventOPS | [Project architecture and details](EventOps/Interview_Guide.md) · [Interview Q&A](EventOps/Interview_Questions_and_Answers.md) | Personalized guide; confirmed stack, migration, features, and 40%-70% coverage result; detailed boundaries pending |
 | PeopleSoft Cloud Manager | Planned | Not started |
 | Gordian | Planned | Not started |
 
