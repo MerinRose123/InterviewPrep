@@ -4,55 +4,145 @@
 
 ## 1. Project architecture
 
-EventOps evolved from a Django monolith toward Flask-based microservices. Angular provided the frontend, Nginx routed backend traffic, Docker packaged backend services, and a common PostgreSQL database stored application data. Celery and Redis supported background processing; detailed PDF generation ran as a Celery task.
+EventOps managed events together with the users, spaces, and equipment needed to run them. Users could modify availability, schedule events, receive email notifications, and generate detailed PDF reports. The application evolved from a Django monolith toward Flask-based microservices, with Angular in the browser, Nginx routing on the backend, Docker-packaged services, and a common PostgreSQL database.
 
-```mermaid
-flowchart TB
-    USER[Event operations users] --> UI[Angular frontend]
-    UI --> NGINX[Nginx routing]
-
-    subgraph BACKEND[Docker-containerized backend]
-        DJANGO[Django application components]
-        FLASK[Flask microservices]
-    end
-
-    NGINX --> DJANGO
-    NGINX --> FLASK
-    DJANGO --> DB[(Common PostgreSQL database)]
-    FLASK --> DB
-    DJANGO -. task dispatch path to verify .-> ASYNC[Celery and Redis background processing]
-    FLASK -. task dispatch path to verify .-> ASYNC
-    ASYNC --> PDF[PDF report task]
-    PDF --> HTML[Populate HTML template with event data]
-    HTML --> OUTPUT[Generate event PDF]
-    DJANGO -. component ownership to verify .-> SCHED[Availability-aware scheduling]
-    FLASK -. component ownership to verify .-> SCHED
-    SCHED --> CAL[Out-of-office calendar]
-```
-
-**Diagram scope:** the technologies, shared database, calendar-based availability checks, and PDF pipeline are confirmed from Merin's recollection. Dotted connections identify unresolved component ownership or dispatch paths. Exact service names and retained Django functionality are not recovered. Redis's broker/result-backend role remains unspecified.
-
-### Architecture evolution
+### System architecture
 
 ```mermaid
 flowchart LR
-    subgraph BEFORE[Original architecture]
-        A[Angular] --> D[Django monolith]
-        D --> P[(Application database)]
+    subgraph BROWSER[User browser]
+        direction TB
+        ANGULAR[Angular application]
+        SCREENS[Users / Spaces / Equipment<br/>Availability / Events / Reports]
+        SCREENS --- ANGULAR
     end
-    subgraph AFTER[Architecture following service extraction]
-        A2[Angular] --> N[Nginx]
-        N --> D2[Django components]
-        N --> F[Flask microservices]
-        D2 --> P2[(Common PostgreSQL)]
-        F --> P2
+
+    subgraph SERVER[Application server - logical backend boundary]
+        direction TB
+        NGINX[Nginx<br/>Request routing]
+
+        subgraph SERVICES[Python backend microservices - Docker containers]
+            direction TB
+            USERS[User management service<br/>Users / roles / user availability]
+            SPACE[Space management service<br/>Spaces / space availability]
+            EQUIP[Equipment management service<br/>Equipment / equipment availability]
+            SCHEDULE[Event and scheduling service<br/>Events / resource allocation / availability checks]
+            WORKFLOW[Workflow service<br/>Conditional tasks / rule-based actions]
+            NOTIFY[Notification service<br/>Email notifications]
+            REPORT[Reporting service<br/>Event report requests]
+        end
+
+        NGINX --> USERS
+        NGINX --> SPACE
+        NGINX --> EQUIP
+        NGINX --> SCHEDULE
+        NGINX --> WORKFLOW
+        NGINX --> NOTIFY
+        NGINX --> REPORT
+
+        DATA[Shared data access<br/>Common PostgreSQL database]
+        USERS --> DATA
+        SPACE --> DATA
+        EQUIP --> DATA
+        SCHEDULE --> DATA
+        WORKFLOW --> DATA
+        NOTIFY -. delivery data if persisted .-> DATA
+        REPORT --> DATA
+
+        subgraph BACKGROUND[Background processing]
+            REDIS[Redis<br/>Celery integration - exact role to verify]
+            CELERY[Celery workers]
+            PDF[PDF generation task<br/>Populate HTML template / render PDF]
+            REDIS -. task infrastructure .- CELERY
+            CELERY --> PDF
+        end
+        REPORT -->|Dispatch PDF generation| CELERY
+        CELERY --> DATA
+        WORKFLOW -. notification integration .-> NOTIFY
     end
-    D -. migration toward modular services .-> F
+
+    subgraph DATABASE[Database boundary]
+        PG[(Common PostgreSQL database)]
+        TENANT[Tenant schemas<br/>Tentative recollection]
+        PG --- TENANT
+    end
+
+    CAL[Out-of-office calendar<br/>Source / provider unspecified]
+    MAIL[Email delivery system<br/>Provider unspecified]
+
+    ANGULAR -->|HTTP API requests| NGINX
+    DATA --> PG
+    SCHEDULE -->|Participant availability| CAL
+    NOTIFY --> MAIL
+
+    classDef frontend fill:#dbeafe,stroke:#2563eb,color:#172554;
+    classDef gateway fill:#ffedd5,stroke:#ea580c,color:#431407;
+    classDef service fill:#e0e7ff,stroke:#6366f1,color:#1e1b4b;
+    classDef database fill:#dcfce7,stroke:#16a34a,color:#052e16;
+    classDef background fill:#f3e8ff,stroke:#9333ea,color:#3b0764;
+    class ANGULAR,SCREENS frontend;
+    class NGINX gateway;
+    class USERS,SPACE,EQUIP,SCHEDULE,WORKFLOW,NOTIFY,REPORT service;
+    class PG,TENANT database;
+    class REDIS,CELERY,PDF background;
 ```
 
-The migration changed application boundaries while retaining a common database. This enabled a more modular backend but preserved database coupling: schema changes and competing writes could still affect multiple services. Separate services did not imply a separate database per service.
+**Reading the diagram:** the browser contains Angular; the server contains Nginx, backend services, and background processing; PostgreSQL is shown as a separate database boundary. The server box groups backend responsibilities and does not assert that every component ran on one physical machine. The data-access box summarizes service-to-database connections; it is not an additional deployed service.
 
-Tenant isolation was probably implemented through separate PostgreSQL schemas within the common database. This remains a tentative recollection. Customer isolation and service ownership are separate concerns: tenant schemas would separate customers, while services could still share the same customer's data.
+**Reconstruction scope:** user, space, equipment, availability, scheduling, email, and reporting capabilities are confirmed. They are shown as functional microservice boundaries to explain the architecture requested here. Their exact original deployment names, one-container-per-service mapping, and split between Django and Flask remain unverified. Workflow and notification connections shown with dotted lines are illustrative. Redis's exact role and schema-level tenancy also remain uncertain. Calendar and mail boxes indicate integration boundaries, not confirmed external providers.
+
+### Service responsibilities and routing
+
+The route prefixes below illustrate Nginx routing; they are not recovered production URLs.
+
+| Service | Responsibility | Availability / data handled | Illustrative route |
+|---|---|---|---|
+| User management | Maintain users and role-related operations | User details and user availability modifications | `/api/users/` |
+| Space management | Maintain event spaces and their availability | Space details and availability modifications | `/api/spaces/` |
+| Equipment management | Maintain event equipment and its availability | Equipment details and availability modifications | `/api/equipment/` |
+| Event and scheduling | Manage event scheduling and relevant resource allocation | Event timing, participants, space/equipment requirements; out-of-office checks | `/api/events/`, `/api/scheduling/` |
+| Workflow | Apply conditions and generate follow-up tasks | Triggers, conditions, task assignments | `/api/workflows/` |
+| Notifications | Prepare and send event-related email | Recipient and notification content; persistence unspecified | `/api/notifications/` |
+| Reporting | Accept event report requests and dispatch PDF work | Event report inputs and HTML-template content | `/api/reports/` |
+
+Availability modifications belong with the entity being managed: user availability with users, space availability with spaces, and equipment availability with equipment. Scheduling consumes the relevant availability information. The historical mechanism for obtaining resource availability across service boundaries is not yet recalled; the shared database does not establish whether scheduling queried tables directly or called service APIs.
+
+### Request and background execution paths
+
+A space-availability update starts in Angular, reaches Nginx, and is routed to the space capability. The backend validates the request and permissions, updates the relevant PostgreSQL data, and returns the result to the browser. This is a reconstructed request path using the confirmed technology stack; actual endpoints and permission middleware remain unspecified. Equipment and user availability follow the same responsibility model.
+
+Scheduling combines the proposed event timing and relevant availability data. Participant availability came from an out-of-office calendar. Space and equipment availability were also managed, but the exact rules for combining all three availability sources in one scheduling decision remain to be recalled.
+
+Reporting uses a different execution path: the reporting capability dispatches PDF generation as a Celery task; the task populates an HTML template with event contents and renders the PDF. The generation mechanism is confirmed, while job-status tracking, file storage, and download delivery remain unspecified.
+
+### Evolution from the original monolith
+
+```mermaid
+flowchart LR
+    subgraph BEFORE[Before - Django monolith]
+        D[Django application<br/>Users / Spaces / Equipment<br/>Events / Workflows / Reports]
+    end
+    subgraph AFTER[After - backend service boundaries]
+        N[Nginx routing]
+        U[Users]
+        S[Spaces]
+        E[Equipment]
+        EV[Events / Scheduling]
+        W[Workflows / Notifications]
+        R[Reporting]
+        N --> U
+        N --> S
+        N --> E
+        N --> EV
+        N --> W
+        N --> R
+    end
+    D -. extraction into Flask-based services .-> N
+```
+
+The migration changed application boundaries while retaining a common database. This supported modular development but preserved database coupling: schema changes and competing writes could still affect multiple services. The capability grouping above is a reconstruction, not a verified extraction sequence.
+
+Tenant isolation was probably implemented through separate PostgreSQL schemas within the common database. Customer isolation and service ownership are separate concerns: tenant schemas would separate customers, while services could still share the same customer's data.
 
 ## 2. Technology stack
 
@@ -78,7 +168,11 @@ EventOps managed organizational event operations involving spaces, equipment, pe
 
 | Capability | Purpose |
 |---|---|
-| Event and resource management | Organize event information and associated space/equipment requirements |
+| User management | Maintain users and support role-based access |
+| Space management | Maintain spaces and modify their availability |
+| Equipment management | Maintain equipment and modify its availability |
+| User availability | Modify user availability and support calendar-based scheduling checks |
+| Event management | Organize event information and associated space/equipment requirements |
 | Participant scheduling | Check availability using an out-of-office calendar |
 | Conditional task generation | Create work when relevant business conditions are met |
 | Automated email | Communicate workflow updates and required actions |
@@ -234,7 +328,7 @@ This is a tentative model, not a recovered schema listing. Schema-per-tenant imp
 
 ### Role-based access control
 
-Merin worked on RBAC to regulate permissions for different user types. The exact role names, permission storage, authentication mechanism, and enforcement locations remain unspecified.
+Merin worked on RBAC to regulate permissions for different user types. User management is a confirmed feature. The exact role names, permission storage, authentication mechanism, and enforcement locations remain unspecified.
 
 The general authorization sequence is identity, verified tenant membership, permission for the operation, and access to the particular object. UI controls reflect permissions; backend checks enforce them. Reports, exports, related-object access, and background work need the same scope discipline as primary APIs.
 
@@ -247,7 +341,9 @@ The following entities explain the domain. They are reference names, not recover
 | Tenant / organization | Customer boundary | Contains customer-scoped event data |
 | User membership | User's organization and permissions | Connects users to an authorized scope |
 | Event | Main event details and lifecycle | Associated with participants and operational requirements |
-| Availability entry | Out-of-office interval or availability information | Used for participant scheduling checks |
+| Space | Event space and its availability | Resource available to event planning |
+| Equipment | Event equipment and its availability | Resource available to event planning |
+| Availability entry | User, space, or equipment availability information | Updated through the corresponding management capability; user scheduling also checks the out-of-office calendar |
 | Task | Assigned work | Associated with an event and responsible user |
 | Automation rule | Trigger, condition, action | Determines conditional workflow behavior |
 | Report request / execution | PDF-generation work and outcome | Reference entity for background reporting; persistence unverified |
@@ -317,7 +413,7 @@ Operational diagnosis separates request latency, queue waiting time, task durati
 
 ## 14. Implementation notes and sources
 
-Confirmed details and clearly labeled reference explanations are kept separate. Remaining unknowns are the service list, table/write ownership, tenancy package/context selection, calendar integration, scheduler, historical renderer/template engine, email provider, hosting, authentication, rollout, and exact coverage scope. No private EventOps source code has been inspected.
+Confirmed details and clearly labeled reference explanations are kept separate. Remaining unknowns are the exact deployed service boundaries/names, table/write ownership, tenancy package/context selection, calendar integration, scheduler, historical renderer/template engine, email provider, hosting, authentication, rollout, and exact coverage scope. No private EventOps source code has been inspected.
 
 The 16 GB CSV pipeline, shared LRU cache, piracy analytics, and Oracle/OCI work are not attributed to EventOps without evidence.
 
