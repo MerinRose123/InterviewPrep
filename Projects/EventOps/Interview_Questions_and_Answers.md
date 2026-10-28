@@ -15,7 +15,7 @@ The project description above is followed here by introductions, structured deci
 
 > EventOps was an event-management system I worked on across my trainee and software-engineer roles at InApp. It supported event operations including spaces, equipment, people, budgets, and reporting, with conditional workflows and role-based access.
 >
-> It originally used a Django monolith. I was a main contributor to moving toward Flask-based microservices. Our stack included Angular on the frontend, Python with Django and Flask on the backend, PostgreSQL for persistence, Celery and Redis for background processing, and Docker with Nginx for containerized services and routing.
+> It originally used a Django monolith. I was a main contributor to moving toward Flask-based microservices. Our stack included Angular, Django/Flask, PostgreSQL accessed mainly through Django ORM with Q/F expressions, Celery/Redis and Beat, and SendGrid. We deployed per-service Docker images on EC2; generated PDFs were uploaded to S3.
 >
 > My feature work included email notifications, scheduling that considered participant availability, and PDF reports containing extensive event details. Another concrete contribution was improving the pytest-based unit testing framework. Coverage had been limited at about 40%; I expanded important-area coverage, using techniques such as mocking, and brought it to 70%, an increase of 30 percentage points. The project also earned me CEO appreciation.
 >
@@ -41,7 +41,7 @@ Each answer follows **mechanism → example → tradeoff → failure → evidenc
 
 **Mechanism:** Flask provides a small extensible web framework; service-specific dependencies and interfaces can be selected explicitly. Separate applications can expose bounded APIs without carrying every monolith capability. See [Flask design](https://flask.palletsprojects.com/en/stable/design/).
 
-**Example:** A space or equipment capability can be explained as an independently packaged API behind Nginx. These are reconstructed capability boundaries, not verified names of the first services extracted.
+**Example:** Feature management in the Django monolith had become difficult, changes caused regressions in other areas, and testing was becoming harder. Extracting bounded capabilities aimed to make changes easier to contain. Space/equipment service names remain reconstructed rather than verified extraction history.
 
 **Tradeoff:** Explicit choices offer flexibility but require consistent validation, authorization, tenancy, errors, and configuration across services. Django could also implement those services. Flask is not inherently faster or more scalable in every workload.
 
@@ -113,13 +113,13 @@ Each answer follows **mechanism → example → tradeoff → failure → evidenc
 
 **Mechanism:** Celery Beat dispatches due periodic tasks; Celery workers execute them. Beat does not itself perform PDF rendering or business task execution. One scheduler must own a given schedule unless coordination prevents duplicates. See [Celery periodic tasks](https://docs.celeryq.dev/en/stable/userguide/periodic-tasks.html).
 
-**Example:** A periodic due-work scan is an illustrative EventOps use case. The fact of periodic scheduling with Beat is confirmed; the actual task list and intervals are not.
+**Example:** Upcoming-event reminders are a confirmed periodic use case. A due-reminder scan is one possible implementation: find eligible events, recheck their status, and trigger notifications. The actual query, lead time, interval, and task split are not recalled.
 
 **Tradeoff:** Periodic scans can provide simple repeatable execution, but timing precision depends on scan intervals, queue delay, and worker availability. Schedule management and execution monitoring remain necessary.
 
 **Failure:** Duplicate Beat instances can enqueue duplicates, long runs can overlap, downtime can delay dispatch, and worker queues can grow. Reference controls include one schedule owner, occurrence deduplication, safe overlap prevention, and an explicit overdue-work policy.
 
-**Evidence:** Beat, Celery, and Redis are confirmed. Schedule storage, ownership topology, timezone settings, locks, and catch-up behavior remain unknown.
+**Evidence:** Beat, Celery, Redis, and upcoming-event reminders are confirmed. SendGrid handled email delivery. Schedule storage, intervals, ownership topology, timezone settings, locks, task decomposition, and catch-up behavior remain unknown.
 
 #### A9. How were background-task failures handled?
 
@@ -169,6 +169,134 @@ Each answer follows **mechanism → example → tradeoff → failure → evidenc
 
 **Evidence:** These are proposed improvements. The strongest existing measured result is pytest coverage moving from 40% to 70%. New improvements need their own evidence, such as tail latency, queue wait, memory, failure/duplicate rates, and a regression test—not the unrelated approximate 15% or 20% career figures.
 
+#### A13. Why move from a monolith to microservices, and was it justified?
+
+**Mechanism:** Capability boundaries reduce how much application behavior must change together. Explicit interfaces can make ownership and focused testing clearer. They do not eliminate shared-data dependencies.
+
+**Example:** EventOps had many features to manage, changes caused regressions in other areas, and testing was becoming difficult. These were the actual migration drivers. Merin was a main contributor to the Django-to-Flask service migration.
+
+**Tradeoff:** Smaller application boundaries can make work more manageable, but introduce network failures, interface compatibility, configuration, and integration testing. A modular monolith could also improve boundaries without distributed-operation costs. Additional possible benefits—separate releases, workload-specific scaling, clearer team ownership—are conditional, not confirmed achievements.
+
+**Failure:** Moving tightly coupled code into separate containers without controlling dependencies can produce a distributed monolith. Shared-table changes may still trigger cross-service regressions; testing cannot stop at isolated units.
+
+**Evidence:** The management, regression, and testing difficulties are directly confirmed. There is no measured reduction in regressions or release time supplied after migration. The 40%-70% coverage improvement is a separate testing result, not proof that microservices caused the improvement.
+
+**Spoken answer:** “We moved because the growing feature set was becoming difficult to manage. Changes in one area introduced regressions elsewhere, and testing was harder. We wanted clearer capability boundaries and more focused changes. I contributed substantially to extracting Flask-based services. The tradeoff was more integration and network complexity, and our shared database meant we still had coupling to manage.”
+
+#### A14. How were authentication and authorization handled?
+
+**Mechanism:** EventOps supported both SSO login and manual login, using Django authentication mechanisms for application identity. Decorators protected admin-specific APIs in backend code, checking access before privileged view logic. Authentication and permission checks are distinct responsibilities.
+
+**Example:** A logged-in non-admin user should not be able to invoke an admin-only API merely by bypassing Angular and calling the URL directly. Backend decorator protection is confirmed; this denied-request example is an explanatory test case, not a recalled endpoint.
+
+**Tradeoff:** Reusing Django avoids inventing an identity system, and decorators make protected endpoints explicit. Per-endpoint decoration requires consistent coverage and review. Exact login/session settings, decorator names, and their behavior in Flask services remain unknown.
+
+**Failure:** An omitted decorator can leave an endpoint exposed. A decorator that checks only login is insufficient for admin access; an admin check alone may not establish tenant/object scope. Suggested checks cover unauthenticated, authenticated non-admin, authorized admin, and wrong-tenant requests. Redirect versus API error behavior depends on the implementation.
+
+**Evidence:** Django auth, RBAC, and decorator-protected admin APIs are confirmed by Merin. Do not assert JWT, particular built-in decorators, group mappings, or centralized Nginx authentication without confirmation. See [Django authentication](https://docs.djangoproject.com/en/5.2/topics/auth/default/).
+
+**Spoken answer:** “We supported SSO and manual login, and used Django's authentication mechanisms for user identity. Admin-specific APIs were protected with decorators in the backend, so access was enforced in code rather than only by hiding UI controls. We also had a multi-tenant architecture, making tenant scope a separate concern. I would verify the exact decorator and how identity was propagated into Flask before naming that mechanism.”
+
+#### A15. How did SSO login relate to calendar access?
+
+**Mechanism:** SSO was an initial login option alongside manual login. Calendar retrieval is a separate integration: successful login alone does not grant calendar-data access. The historical data-access mechanism is not remembered.
+
+**Example:** Scheduling checked the user's out-of-office information to assess availability. This does not establish a full meeting-calendar conflict check or identify a specific calendar provider.
+
+**Tradeoff:** Organization identity integration can simplify access, while adding dependency on the identity/calendar integration's availability and granted permissions. Reusing EventOps user identity across all services is not implied by this integration.
+
+**Failure:** Expired access, denied permissions, or provider downtime can prevent availability checks. A safe reference behavior is to expose an unavailable/unknown result rather than treat a failed lookup as “free.” Historical refresh, retries, and fallback behavior remain unknown.
+
+**Evidence:** SSO/manual login and out-of-office availability checks are confirmed. Earlier recollection linked SSO to calendar access, but that connection is not established. Protocol, provider, API, credentials/scopes, and token lifecycle remain unknown. Do not substitute OAuth/OIDC, SAML, JWT, or a Microsoft/Google integration based solely on the term SSO.
+
+#### A16. How did the application communicate with the database?
+
+**Mechanism:** We mainly used Django ORM models and QuerySets to read and write the common PostgreSQL database. `Q` objects supported complex boolean conditions, and `F` expressions supported database-side field references and calculations.
+
+**Example:** A resource search could combine alternative conditions with `Q`; comparing actual cost to a budget field illustrates `F`. These examples explain the tools; the specific historical expressions are not recalled.
+
+**Tradeoff:** ORM code integrates well with models and reduces repetitive SQL, but query efficiency still depends on the generated SQL, relationships, indexes, and data accessed. Raw SQL is an option when a measured need justifies it, not an automatic upgrade.
+
+**Failure:** Unbounded eager loading, per-object queries, broad updates, or missing tenant scope can still occur. Our actual prefetch change caused a roughly 10-second loading delay in load testing; I fixed it by moving optional fetching to a conditional later call.
+
+**Evidence:** Django ORM, Q/F use, and the prefetch regression/fix are confirmed. The per-Flask-service ORM integration, exact schema, and query plans remain unverified. [Django queries](https://docs.djangoproject.com/en/5.2/topics/db/queries/).
+
+**Spoken answer:** “We mainly used Django ORM for PostgreSQL communication. For complex conditions we used Q objects, and for field-based expressions we used F. I still evaluated performance against the access pattern: my prefetch optimization reduced the intended number of calls but caused a load-test regression, which I fixed with conditional fetching.”
+
+#### A17. What is the difference between Q and F? Can F prevent races?
+
+**Mechanism:** `Q` composes predicates; `F` refers to a field within an expression. A database-side update such as `count=F('count') + 1` avoids a Python read-modify-write increment. See [Django expressions](https://docs.djangoproject.com/en/5.2/ref/models/expressions/).
+
+**Example:** “Status is planned OR confirmed” is a Q-style condition. “Actual cost exceeds budget” is a field-comparison F-style expression. These are illustrative domain conditions, not recovered queries.
+
+**Tradeoff:** Expressions move suitable work into SQL, but still require a correct predicate and transaction boundary. F is not a general-purpose concurrency solution.
+
+**Failure:** Incrementing a field safely does not prove an equipment-capacity invariant or prevent overlapping space reservations. Those require suitable conditions, constraints, or transaction coordination across all competing writers.
+
+**Evidence:** Q/F usage is confirmed. No specific race fixed with F, inventory update, or production expression is asserted. A strong follow-up would identify one actual query Merin remembers.
+
+#### A18. How were generated PDFs stored and retrieved?
+
+**Mechanism:** A Celery task generated a PDF from populated HTML, and the report was uploaded to an Amazon S3 bucket. Download handling is a separate application concern.
+
+**Example:** The confirmed pipeline is event contents → HTML template → PDF generation → S3 upload. A reference object key might include tenant, event, and report identity; the actual key format is unknown.
+
+**Tradeoff:** Object storage separates report persistence from replaceable containers, but adds upload failures, access policy, object lifecycle, and link authorization considerations. Listing or guessing an object key must not substitute for checking user access.
+
+**Failure:** PDF rendering may succeed while upload fails, or upload may succeed before a report-status write fails. A reference design marks readiness only after upload success and can reconcile orphaned objects or stale job records. These controls are not confirmed historical features.
+
+**Evidence:** Celery generation and S3 upload are confirmed. SDK/library, database metadata, object keys, bucket policy, and download method remain unspecified.
+
+#### A19. How would you secure S3 report access and credentials?
+
+**Mechanism:** A reference design keeps reports private, checks application user/tenant permissions, and either streams the file through an authorized backend or creates a short-lived presigned download URL. An EC2 instance role is an option for AWS credentials, not a confirmed EventOps configuration.
+
+**Example:** After confirming a user's access to an event, the backend can issue a URL limited to that report. The S3 key should come from trusted report metadata rather than an unrestricted user-supplied path.
+
+**Tradeoff:** Presigned download reduces application file-serving work, but possession of the URL grants its access until expiration or credential/policy changes make it invalid. Backend streaming provides a different control point at the cost of application bandwidth and processing.
+
+**Failure:** A leaked URL, overly broad IAM permission, or wrong-tenant object mapping can expose reports. Naming prefixes alone do not enforce isolation. Avoid printing sensitive signed URLs or baking AWS keys into images.
+
+**Evidence:** S3 storage and EC2 hosting are confirmed; presigned URLs, instance roles, encryption settings, and access policies are alternatives to explain, not historical claims. [AWS S3 presigned URLs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html).
+
+#### A20. How were the services built and deployed?
+
+**Mechanism:** We used Docker images for each service. `docker build` built the service image from its Dockerfile/build context, and containers ran the service on EC2. Nginx mainly routed traffic to the relevant service.
+
+**Example:** Illustrative only: `docker build -t eventops-spaces:example ./spaces` builds a tagged space-service image. Replacing a running service also needs the correct runtime configuration, networking, and application readiness; building alone is not deployment.
+
+**Tradeoff:** Per-service images package dependencies consistently and enable targeted service changes. They also require image version management, compatibility testing, configuration, and cleanup.
+
+**Failure:** Wrong image tags, missing runtime variables, dependency differences, incompatible migrations, or duplicate Beat schedulers can break a release. Suggested controls include known image versions, smoke checks, compatible migrations, graceful worker handling, and rollback planning.
+
+**Evidence:** Per-service images, Docker builds/deployment, EC2 hosting, and Nginx routing are confirmed. Registry, build location, Docker Compose, CI/CD, orchestration, and zero-downtime release mechanics are not. [Docker build overview](https://docs.docker.com/build/concepts/overview/).
+
+#### A21. What did EC2 provide, and how would you scale or roll back?
+
+**Mechanism:** EC2 supplied application compute; Docker ran services; PostgreSQL held application data; S3 stored generated PDFs. This does not establish where PostgreSQL ran or whether EC2 instances were replicated.
+
+**Example:** A reference scale-out adds service replicas and suitable traffic distribution, while background capacity is adjusted separately. EventOps Nginx was mainly for routing; production replica balancing is not confirmed.
+
+**Tradeoff:** More containers or instances increase capacity only when CPU, memory, database connections, and downstream limits permit it. Rolling back an image is simpler when schema and task interfaces remain compatible.
+
+**Failure:** Adding replicas can exhaust database capacity; reverting code after a destructive migration may fail. Report objects in S3 survive a container replacement, but application references and permissions must remain correct. In-flight Celery tasks also require release compatibility.
+
+**Evidence:** EC2, Docker, S3, and the common database are confirmed. Instance count/type, load balancer, Auto Scaling, managed database use, and actual rollback mechanism remain unknown. These are design options to evaluate against observed demand.
+
+#### A22. Explain SSO behind the scenes.
+
+**Mechanism:** The application delegates authentication to a trusted identity provider, validates the returned result, maps it to a local user, and establishes application login. In an OIDC code-flow example, the browser receives a code at a registered callback and the backend exchanges it before validating the identity token. SAML uses a different assertion flow. See the [step-by-step walkthrough](Interview_Guide.md#sso-behind-the-scenes-reference-walkthrough).
+
+**Example:** A user chooses SSO in Angular, authenticates at the corporate provider, and returns to EventOps. If a provider session already exists, a repeated password prompt may be unnecessary. Manual login is the other confirmed option.
+
+**Tradeoff:** Central identity simplifies corporate login and policies, while adding an identity-provider dependency and account/session integration work. EventOps still needs tenant membership and permission checks; a valid corporate identity alone does not authorize admin operations.
+
+**Failure:** Invalid callbacks, expired codes, mismatched identity claims, unsafe account linking, or incorrect session handling can break login or access control. These are reference failure modes, not reported EventOps incidents. Application logout and provider logout are distinct.
+
+**Evidence:** SSO/manual login, Django authentication, and admin decorators are confirmed. OIDC/SAML, provider, tokens, PKCE, and session details are not. Explain one reference protocol clearly while identifying it as conceptual.
+
+**Spoken answer:** “SSO delegates identity verification to a provider the application trusts. The browser is redirected there, the provider authenticates the user, and the application validates the response before establishing local login. Roles and tenant access are still application checks. EventOps supported SSO and manual login, but I don't recall whether its integration used OIDC or SAML.”
+
 ### Communication alternatives at a glance
 
 | Mechanism | Fits best when | Main cost | EventOps status |
@@ -194,7 +322,7 @@ Each answer follows **mechanism → example → tradeoff → failure → evidenc
 
 #### 2. Explain the architecture end to end.
 
-**Answer:** The frontend was Angular. The backend began as a Django monolith and evolved toward Flask microservices, packaged with Docker and routed through Nginx. PostgreSQL stored application data, and Celery with Redis supported background processing. I would then map one actual route and task. The services used a common PostgreSQL database, and PDF generation ran as a Celery task. Django multi-tenancy was used; schema-level isolation is my tentative recollection; exact service/table ownership and context handling need confirmation.
+**Answer:** The frontend was Angular. The backend began as a Django monolith and evolved toward Flask microservices, packaged with Docker and routed through Nginx. PostgreSQL stored application data, and Celery with Redis supported background processing. I would then map one actual route and task. The services used a common PostgreSQL database, mainly accessed through Django ORM. The application ran on EC2 with per-service Docker images; Celery-generated PDFs were uploaded to S3. Django multi-tenancy was used; schema-level isolation is my tentative recollection; exact service/table ownership and context handling need confirmation.
 
 #### 3. What was your technology stack?
 
@@ -218,7 +346,7 @@ Each answer follows **mechanism → example → tradeoff → failure → evidenc
 
 #### 8. How did you implement RBAC?
 
-**Answer:** RBAC is an explicit EventOps contribution. A complete personal answer needs the real roles, permission storage, enforcement point, and one allowed/denied example. The essential design principle is backend enforcement for the operation and object, in the correct tenant context; UI visibility is only a presentation concern.
+**Answer:** We supported both SSO and manual login using Django authentication mechanisms, and admin-specific APIs were protected with decorators in the backend code. Authentication identified the user; the admin checks determined whether the user could perform a privileged operation. Role-based access was part of the application. The exact decorators and role storage are not currently recalled. I would separately explain tenant and object scope, because being logged in or having an admin role does not by itself establish access to every tenant's data.
 
 #### 9. How did you prevent cross-tenant access?
 
@@ -254,7 +382,7 @@ Each answer follows **mechanism → example → tradeoff → failure → evidenc
 
 #### 17. What was your hardest technical challenge?
 
-**Answer framework:** The monolith-to-microservices migration is a confirmed engineering challenge I contributed to. I can structure the answer around an extracted capability, existing dependencies, API/data compatibility, my implementation changes, and verification. I still need a specific remembered obstacle or defect; I should not invent a production incident.
+**Answer:** I added Django `prefetch_related()` to reduce database calls and expected faster loading. Load testing instead exposed an approximately 10-second loading delay. I also implemented the fix: removing prefetch from the initial load and fetching the additional information conditionally in a subsequent call. It resolved the loading issue, with an extra call when the data was needed. This is a load-testing performance regression I owned, not a confirmed production outage.
 
 #### 18. How would you scale the application?
 
@@ -270,7 +398,7 @@ Each answer follows **mechanism → example → tradeoff → failure → evidenc
 
 #### 21. Why migrate from Django to Flask?
 
-**Answer:** I contributed to moving a Django monolith toward Flask microservices for a more modular backend; scalability and modular development are documented goals. Flask suited the chosen service approach, but it is not inherently more scalable than Django. A strong answer needs the actual business capability extracted and the original maintenance or delivery problem. Django can also power microservices, and Flask can also be used in a monolith.
+**Answer:** EventOps had accumulated many features, making the monolith difficult to manage. Changes in one area introduced regressions elsewhere, and testing became harder. I was a main contributor to moving toward Flask-based services with clearer capability boundaries. The goal was more manageable changes and focused testing, at the cost of network and integration complexity. Flask was the chosen service framework; the architectural benefit came from boundaries, not an inherent speed advantage over Django. The shared database meant some coupling remained.
 
 #### 22. What did Docker and Nginx contribute?
 
@@ -278,11 +406,11 @@ Each answer follows **mechanism → example → tradeoff → failure → evidenc
 
 #### 23. How did participant availability affect scheduling?
 
-**Answer:** Our scheduling feature checked participant availability from an out-of-office calendar. I need to recall the calendar integration and whether we searched for slots or validated a selected slot. An out-of-office check alone does not establish absence of other meetings. For a conceptual overlap check, two half-open intervals overlap if each starts before the other ends. Concurrent scheduling requires protection beyond a pre-save availability query; the mechanism we used remains to be recalled.
+**Answer:** Our scheduling feature checked participant availability from an out-of-office calendar. The application supported SSO login, but the exact calendar-data access mechanism is not recalled. The provider/protocol and whether we searched for slots or validated a selected slot remain to be recalled. An out-of-office check alone does not establish absence of other meetings. For a conceptual overlap check, two half-open intervals overlap if each starts before the other ends. Concurrent scheduling requires protection beyond a pre-save availability query; the mechanism we used remains to be recalled.
 
 #### 24. How did PDF generation work?
 
-**Answer:** I worked on PDF reports containing extensive event details. A complete walkthrough should identify the requested event, authorization, data assembly, PDF library, and how users received the file. PDF generation ran as a Celery task. We populated an HTML template with event contents and converted it to PDF. I use WeasyPrint personally and can explain its implementation, but the historical EventOps renderer is not verified. I should not attach the separate 16 GB CSV pipeline to this story without evidence.
+**Answer:** I worked on PDF reports containing extensive event details. A complete walkthrough should identify the requested event, authorization, data assembly, PDF library, and how users received the file. PDF generation ran as a Celery task. We populated an HTML template with event contents and converted it to PDF. I use WeasyPrint personally and can explain its implementation, but the historical EventOps renderer is not verified. Generated PDFs were uploaded to S3. I should not attach the separate 16 GB CSV pipeline to this story without evidence.
 
 #### 25. What does 40% to 70% coverage mean?
 
@@ -291,3 +419,182 @@ Each answer follows **mechanism → example → tradeoff → failure → evidenc
 #### 26. How did you manage transactions after splitting services?
 
 **Answer:** The backend services used a common PostgreSQL database, so I should discuss the actual table/write ownership and migration coupling. A common database does not automatically make writes from separate service requests one atomic transaction. I need to recall the real transaction boundaries. Outbox patterns or compensation are possible designs, not confirmed EventOps features.
+
+## Actual load-testing regression: eager prefetch delayed initial loading
+
+**Confirmed by Merin:** Merin personally added Django `prefetch_related()` to reduce database calls, expecting faster loading. Load testing exposed an approximately **10-second data-loading delay**. Merin also implemented the fix: removing prefetch from the initial load and fetching the extra data conditionally in a subsequent call. The screen, relation, load-test parameters, and exact after-fix timing remain to be recalled. Production exposure is not established by this clarification.
+
+### Mechanism → example → tradeoff → failure → evidence
+
+**Mechanism:** Eager loading changes when related data is fetched. Django's `prefetch_related()` performs additional lookups and associates related objects in Python. It can help when those objects are needed, but unnecessary related data can add work to initial loading. This describes the likely ORM mechanism; the exact historical prefetch expression is not supplied. See [Django prefetch documentation](https://docs.djangoproject.com/en/5.2/ref/models/querysets/#prefetch-related).
+
+**Example:** I added prefetch to the initial data load to reduce database calls. During load testing, that path showed an approximately 10-second loading delay. The fix separated the initial data load from the optional related-data fetch, which happened only when the relevant condition was met. A detail panel opened by a user is an illustrative condition, not a confirmed EventOps screen or trigger.
+
+**Tradeoff:** The corrected design shortened the initial critical path and avoided loading optional data for every initial request. Users who needed the extra information incurred a subsequent call and its own loading/error state. It changed the timing and necessity of work; it did not prove the combined duration of both calls was always lower. When most callers need the related data immediately, selective/bounded prefetch might still be appropriate.
+
+**Failure:** The optimization put additional data loading on the critical path. The observation supports removing that eager work, but does not establish whether the dominant cost was SQL execution, data volume, Python association, serialization, or another step. Removing prefetch indiscriminately could also introduce repeated per-object queries if a serializer still accesses each relation; a batched conditional fetch avoids that particular design pitfall.
+
+**Evidence:** The confirmed facts are my ownership of both changes, the goal of reducing database calls, the approximate 10-second loading delay observed in load testing, and resolution through conditional fetching in a later call. The expected reduction in database calls was the motivation, not a supplied before/after measurement. There is no supplied after-fix latency, query count, row count, tenant size, or throughput figure. Do not claim “10 seconds to 200 ms,” an N+1 diagnosis, a large SQL join, or high-volume incident impact without recollection.
+
+### Interview-ready answer
+
+> “I added Django `prefetch_related()` to reduce database calls, expecting it to improve loading speed. However, load testing exposed roughly a 10-second loading delay. I fixed the code by removing prefetch from the initial load and fetching the additional data conditionally in a subsequent call. That resolved the loading issue while introducing an extra call only when the data was needed. The lesson was that fewer database calls do not necessarily mean a faster user experience: I needed to consider how much work happened on the initial loading path and validate the change under load.”
+
+This demonstrates ownership of an optimization that regressed performance and of the corrective change. It is an actual load-testing finding; no production outage or exact after-fix latency is claimed.
+
+### Follow-up: why can prefetch be slower?
+
+**Mechanism:** Avoiding repeated relation access is useful only if the saved work outweighs the extra fetch/association cost and the data is actually needed.
+
+**Example:** Optional event detail data does not need to block the initial response. This illustrates the incident's access-pattern change without identifying an unremembered relation.
+
+**Tradeoff:** Eager loading favors immediate access to required related data. Conditional loading favors optional or rarely used data. The right boundary is the smallest useful response for the user action.
+
+**Failure:** Using query count alone as the success metric can miss latency and payload costs. Conversely, simply deleting prefetch while still iterating through related objects can regress into many small queries.
+
+**Evidence:** Initial-load timing and required-versus-optional usage are directly relevant. Query timings, returned data volume, and serialization timing would distinguish underlying costs; those diagnostics are suggested, not confirmed historical actions.
+
+### Verification and regression checks to discuss
+
+These are proposed checks unless Merin recalls performing them:
+
+- Initial loading completes without fetching or serializing the optional relationship.
+- The subsequent call occurs only when its condition is satisfied, with the same authorization and tenant scope.
+- Optional-fetch failure leaves the initial data usable and exposes a clear retry state.
+- Representative small and large relationship sizes do not cause unbounded response work.
+- Query count and latency are checked separately; no per-item fetch loop is introduced.
+- If consistency across the two calls matters, the UI handles data changing between responses.
+
+### What makes this a notable answer
+
+The strength is a personally owned optimization, a regression exposed by load testing, a corrective change, and a clear tradeoff. It demonstrates performance judgment and avoiding unnecessary work. Scale relevance comes from how optional eager loading grows with relationship size and concurrent requests; actual high traffic or large record counts have not been established for this incident.
+
+Details worth recalling: the screen/API, related entity, conditional trigger, whether the later call was a browser API request, your contribution, how the delay was observed, and the after-fix result.
+
+## Production-incident practice scenarios
+
+**These are hypothetical scenarios based on the EventOps stack, not incidents Merin has confirmed.** They are useful for recognizing similar experience and practicing troubleshooting. Use “I would” for a design exercise; use “I did” only for actions actually performed. No incident below is attributed to Amazon, Under Armour, or another client.
+
+Scale can mean bursty demand, concurrent writes, many tenants, large reports, or cascading dependencies. A strong incident answer identifies the affected workflow, diagnoses the mechanism, contains impact, changes the underlying behavior, and demonstrates recovery. It does not need an invented customer count or dramatic outage.
+
+### Choosing the strongest story
+
+| Scenario | Engineering strength demonstrated | Match to confirmed work |
+|---|---|---|
+| PDF backlog delays other tasks | Capacity reasoning, workload isolation, memory and database limits | Strong: Celery PDF reports, HTML templates |
+| Availability endpoint degrades under demand | Query diagnosis, shared-database contention, bounded concurrency | Strong: scheduling, common PostgreSQL |
+| Concurrent requests double-book a resource | Transaction correctness and concurrency | Strong: space/equipment scheduling domain |
+| Duplicate periodic work after deployment | Distributed scheduling, occurrence identity, safe recovery | Strong: Celery Beat |
+| One unavailable service causes cascading failures | Dependency budgets, retry safety, operational diagnosis | Conditional: REST communication tentatively recalled |
+| Background task uses the wrong tenant context | Isolation, worker lifecycle, targeted regression testing | Conditional: Django tenancy confirmed; schema mechanism tentative |
+
+The actual prefetch regression above is the primary performance story, detected during load testing rather than a confirmed production incident. The first three hypothetical scenarios are useful for additional scale discussion. Choose one matching a remembered issue rather than memorizing a fictional incident.
+
+### Scenario 1: PDF bursts exhaust worker capacity
+
+**Mechanism:** Reports require data loading, HTML construction, and rendering. If long tasks share workers with shorter work, reports can occupy execution slots and delay everything else. Increasing worker processes can also multiply memory usage and database demand.
+
+**Example:** After a busy event period, many reports are requested close together. Reports remain pending, and any short periodic work sharing those workers becomes late. This is a hypothetical burst, not an observed EventOps incident.
+
+**Tradeoff:** Dedicated queues and worker pools protect short work, but reserve capacity and require task routing. Extra workers help only while memory, CPU, and PostgreSQL can support them. Reusing a completed report is safe only when its data version, permissions, and freshness requirements permit it.
+
+**Failure and response:**
+
+1. Separate queue waiting time from actual render duration. Check active task types, worker restarts, peak memory, and database load.
+2. Contain the backlog by limiting report admission/concurrency while preserving urgent work. Avoid automatically adding processes to an already memory-starved host.
+3. If resource competition is established, route reports to bounded dedicated workers, reduce repeated data loading, and control task prefetch where it affects long-task distribution.
+4. Add a representative burst test with realistic long reports; verify short work remains responsive and report throughput meets demand. Inspect timeouts and clean up partial outputs.
+
+**Evidence:** Task enqueue/start/finish timestamps, oldest waiting-task age by class, render duration, process/container memory, worker exits, and database connection use. None of these measurements is supplied for EventOps. [Celery optimization guidance](https://docs.celeryq.dev/en/stable/userguide/optimizing.html) supports reasoning about queue capacity and workload tuning.
+
+**Illustrative capacity calculation:** with four execution slots and a mean render time of 20 seconds, the idealized ceiling is `4 × 60 / 20 = 12 reports/minute`. At 18 arrivals/minute, backlog grows by about six reports/minute. Real capacity is lower or more variable when resources contend; these are invented calculation inputs, not project metrics.
+
+**Practice answer:** “I would first distinguish waiting time from execution time. If reports were occupying shared workers, I would protect short tasks and bound report concurrency, then check memory and database capacity before scaling. I would prove improvement with queue-age and completion-time measurements under the same workload.”
+
+### Scenario 2: Scheduling becomes slow because of database work
+
+**Mechanism:** Repeated availability queries can create excessive round trips, broad scans, or lock waits. A common database allows reporting and other services to compete with scheduling for connections and resources. Similar symptoms can have different causes; high latency alone does not identify a missing index.
+
+**Example:** An event with several participants and resources triggers one availability lookup per entity, followed by more queries for related details. During concurrent report activity, scheduling slows. The query pattern and contention are hypothetical.
+
+**Tradeoff:** Batch queries can reduce round trips, and appropriate indexes can improve selective reads, but larger joins and indexes have costs. Extra worker connections can worsen database contention. Cached availability may accelerate reads while introducing freshness problems for booking decisions.
+
+**Failure and response:**
+
+1. Trace a slow request and count queries. Distinguish time waiting for a connection, executing queries, waiting on locks, and calling another service.
+2. Inspect representative query plans and lock/blocking information. Run expensive analysis against safe representative data or within controlled production limits.
+3. Contain competing workload if established; then batch lookups, remove redundant reads, or add a query-appropriate index based on evidence.
+4. Compare the same event shapes before and after. Check correctness, database write overhead, and larger tenant data sets as well as median latency.
+
+**Evidence:** Query count per request, query plans, rows examined/returned, blocking sessions, connection counts, and p95/p99 scheduling latency. The exact EventOps ORM access and indexes are unknown. [PostgreSQL locking documentation](https://www.postgresql.org/docs/current/explicit-locking.html) explains locking and inspection facilities; actual query optimization requires the real query and plan.
+
+**Practice answer:** “I would trace the scheduling request before changing capacity. If repeated queries were the cause, I would reduce round trips and verify the relevant plan. If lock or connection contention dominated instead, I would address that mechanism. The outcome would be demonstrated with comparable latency and database-load measurements.”
+
+### Scenario 3: Two concurrent requests reserve the same space
+
+**Mechanism:** Two requests both check availability before either reservation commits. Both see a free interval and insert overlapping bookings. This is a check-then-write race; it can occur without very high traffic.
+
+**Example:** Two planners select the same room and overlapping times. Each succeeds independently, but the combined state violates the booking rule. For quantity-based equipment, the invariant may instead be that total reserved quantity never exceeds inventory.
+
+**Tradeoff:** Serialization protects correctness but adds waiting under contention. Locking a whole resource is simple but coarse; database interval constraints can express some invariants more directly but require suitable schema support. Equipment quantities and interval overlaps need different constraint designs.
+
+**Failure and response:**
+
+1. Confirm overlapping committed reservations and reconstruct request timing; distinguish a race from stale UI data or timezone conversion.
+2. Reconcile affected bookings with the responsible operations team; stop silent confirmations if correctness cannot be guaranteed.
+3. For a reference fix, lock a stable resource record within a transaction, recheck overlaps, and persist before releasing it. Every competing writer must follow the protocol. Locking existing booking rows alone does not protect a previously empty interval.
+4. For multiple resources, acquire locks in a consistent order to limit deadlocks. Keep external calendar/HTTP calls outside long-held database locks where possible, while preserving the final authoritative validation.
+5. Use concurrent database connections in a regression test. Assert that conflicting requests cannot both succeed. Also test adjacent intervals and unrelated resources.
+
+**Evidence:** Reproduced interleaving before the fix, rejection of the conflicting transaction after it, no overlapping committed bookings, and acceptable lock-wait latency. Mocked tests alone do not demonstrate database concurrency correctness. [PostgreSQL locking reference](https://www.postgresql.org/docs/current/explicit-locking.html).
+
+**Practice answer:** “The important distinction is that an availability check is not a reservation. I would protect the final check-and-write operation, make all writers follow the same protocol, and test the competing transactions concurrently. I would then measure contention as well as correctness.”
+
+### Scenario 4: Duplicate periodic work after a deployment
+
+**Mechanism:** Two Beat instances owning the same schedule can publish duplicate tasks. Independently, a task that runs longer than its interval can overlap with its next occurrence. Retries or redelivery are separate duplication paths.
+
+**Example:** During deployment, an old scheduler remains active while a new one starts. A periodic workflow executes twice or generates duplicate follow-up work. This is hypothetical; duplicate notifications do not by themselves prove duplicate Beat processes.
+
+**Tradeoff:** Single scheduler ownership is operationally simpler but needs a defined failover process. Occurrence deduplication protects effects but needs persistent identity and cleanup. A permanent “already processed” flag can incorrectly suppress the next legitimate occurrence.
+
+**Failure and response:**
+
+1. Distinguish duplicate publication from repeated worker execution using task IDs, schedule entries, logical occurrence IDs, and process/deployment records.
+2. Stop unintended duplicate schedule ownership and pause unsafe replay. Reconcile any repeated business effects.
+3. Define one logical occurrence, such as tenant + rule + target + scheduled time/version, and make its execution safe to repeat. Prevent overlap separately where required.
+4. Test deployment overlap, failover, retry, and repeated legitimate occurrences. Verify that the fix does not simply drop future work.
+
+**Evidence:** Active scheduler ownership, enqueue and execution records, duplicate business-effect counts, and successful future occurrences. Beat use is confirmed; this incident and its fixes are not. [Celery periodic task guidance](https://docs.celeryq.dev/en/stable/userguide/periodic-tasks.html).
+
+### Scenario 5: A slow internal service triggers cascading timeouts
+
+**Mechanism:** A scheduling request waits for a slow downstream dependency. Concurrent waits occupy request-handling capacity, while layered retries amplify load. Nginx gateway errors may be the visible symptom rather than the original fault.
+
+**Example:** A resource lookup slows, scheduling waits, and clients retry. Increasing the Nginx timeout hides failures longer but does not increase downstream capacity. Inter-service REST is a tentative recollection; this dependency graph is illustrative.
+
+**Tradeoff:** Short deadlines protect capacity but fail some requests that could eventually succeed. Retries help transient errors but may overload the dependency. A stale fallback may be acceptable for display but unsafe for confirming availability.
+
+**Failure and response:** Correlate request timing across proxy, caller, and downstream service. Contain load and unnecessary retries, then identify whether downstream code, database work, or saturation caused the delay. Apply bounded request budgets and concurrency, and use selective retries only when safe. Validate write outcomes before replay after ambiguous timeouts.
+
+**Evidence:** A correlated slow request, dependency latency, request-slot/concurrency use, retry counts, gateway errors, and recovery under controlled dependency slowdown. Do not claim that circuit breakers, distributed tracing, or replica balancing were implemented without recollection.
+
+### Scenario 6: Background worker retains the previous tenant's context
+
+**Mechanism:** A reused process or database connection may retain tenant state if context is not selected and restored for each task. Request middleware does not automatically run around a background task.
+
+**Example:** A PDF task succeeds in isolation but, after another customer's task, loads incorrect or missing data. This is a hypothetical isolation defect; no actual cross-tenant exposure has been reported. The schema-specific explanation applies only if schema tenancy is confirmed.
+
+**Tradeoff:** Context-managed cleanup supports connection reuse, but implicit process-global state is difficult to reason about. Separate tenant databases/processes would add operational cost and are not automatically the required solution.
+
+**Failure and response:** Suspend affected output delivery, preserve enough evidence to assess scope, and follow the real incident process if incorrect data may have been exposed. Reproduce A → B → A tasks on the same worker/connection, including an exception path. Select tenant context from validated task identity and restore it in guaranteed cleanup. Recheck authorization when delivering reports.
+
+**Evidence:** Tenant-scoped test data, sequential mixed-tenant reproduction, exception cleanup assertions, and no cross-tenant reads after the fix. Django multi-tenancy is confirmed; task context leaks, the tenancy package, and schema-level isolation are not.
+
+### Turning a matching scenario into your actual answer
+
+Use only a real recalled incident to complete this narrative:
+
+> “During [real period/workload], [specific workflow] showed [observed symptom]. My responsibility was [actual ownership]. I checked [real evidence], which showed [root cause]. We first [containment], then I [implemented change]. I added [regression check] and verified [observed result]. The tradeoff was [cost or remaining limitation].”
+
+Recover concrete details: symptom, approximate timing, code/module changed, diagnostic tool actually used, review/deployment responsibility, regression test, and recovery evidence. An honest qualitative result is preferable to invented p95 latency, request volumes, or customer impact. The known 40%-70% coverage result belongs to the testing improvement, not automatically to any of these incidents.
