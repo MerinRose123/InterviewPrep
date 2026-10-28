@@ -11,6 +11,7 @@ Senior-level notes on relational databases, SQL, scaling, Redis, and MongoDB. SQ
 - [SQL joins](#sql-joins)
 - [Aggregate functions](#aggregate-functions)
 - [SQL window functions](#sql-window-functions)
+- [SQL queries](#sql-queries)
 - [Database backups and recovery](#database-backups-and-recovery)
 - [Stored procedures, functions, and triggers](#stored-procedures-functions-and-triggers)
 - [Locks and concurrency control](#locks-and-concurrency-control)
@@ -290,6 +291,90 @@ FROM transactions;
 ```
 
 Use a deterministic tie-breaker in `ORDER BY` when row order matters. Window-frame defaults vary with the function and ordering; specify a frame explicitly for running aggregates.
+
+## SQL queries
+
+### Employees who logged in for three consecutive days
+
+**Question:** given `employee_logins(employee_id, login_date)`, return employees who logged in on at least three consecutive calendar days. A four-day streak also qualifies; weekends count as calendar days.
+
+The [window functions section](#sql-window-functions) provides the foundation. The extra steps are to remove duplicate logins on the same day, order dates separately for each employee, and check that the next two dates are one and two days later.
+
+```sql
+-- PostgreSQL; login_date can be a DATE or a timestamp.
+WITH daily_logins AS (
+    SELECT DISTINCT employee_id, CAST(login_date AS DATE) AS login_day
+    FROM employee_logins
+    WHERE employee_id IS NOT NULL AND login_date IS NOT NULL
+), next_logins AS (
+    SELECT employee_id, login_day,
+           LEAD(login_day, 1) OVER (
+               PARTITION BY employee_id ORDER BY login_day
+           ) AS next_day,
+           LEAD(login_day, 2) OVER (
+               PARTITION BY employee_id ORDER BY login_day
+           ) AS day_after_next
+    FROM daily_logins
+)
+SELECT DISTINCT employee_id
+FROM next_logins
+WHERE next_day = login_day + 1
+  AND day_after_next = login_day + 2
+ORDER BY employee_id;
+```
+
+**How to explain it in an interview:**
+
+1. `daily_logins` keeps one row per employee per calendar day. Multiple logins on one day must not count as multiple days.
+2. `PARTITION BY employee_id` prevents dates from different employees being compared.
+3. `ORDER BY login_day` puts each employee's dates in sequence; `LEAD` reads the next and second-next dates.
+4. In PostgreSQL, adding an integer to a `DATE` adds calendar days. Both comparisons must match; merely having three login rows is insufficient.
+5. The final `DISTINCT` returns an employee once even when they have several qualifying streaks. Missing following rows produce `NULL` and do not pass the filter.
+
+Example after removing duplicate days:
+
+| Employee | Login days | Qualifies? |
+|---|---|---|
+| 101 | Oct 1, Oct 2, Oct 3 | Yes |
+| 102 | Oct 1, Oct 2, Oct 4 | No: a day is missing |
+| 103 | Oct 1, Oct 2, Oct 3, Oct 4 | Yes: at least three consecutive days |
+| 104 | Oct 1 only, with three logins that day | No: only one distinct day |
+
+If timestamps include time zones, define the business time zone before extracting the date. For a PostgreSQL `TIMESTAMPTZ`, for example, use `(login_date AT TIME ZONE 'Asia/Kolkata')::date` for India calendar days. The plain cast uses the session time zone for `TIMESTAMPTZ`.
+
+### Follow-up: return streak dates and lengths (gaps and islands)
+
+For a configurable minimum length, group each uninterrupted run of dates into an “island.” Subtracting the row number from each date gives the same key throughout a consecutive streak:
+
+```sql
+WITH daily_logins AS (
+    SELECT DISTINCT employee_id, CAST(login_date AS DATE) AS login_day
+    FROM employee_logins
+    WHERE employee_id IS NOT NULL AND login_date IS NOT NULL
+), numbered AS (
+    SELECT employee_id, login_day,
+           ROW_NUMBER() OVER (
+               PARTITION BY employee_id ORDER BY login_day
+           ) AS rn
+    FROM daily_logins
+), grouped AS (
+    SELECT employee_id, login_day,
+           login_day - CAST(rn AS INTEGER) AS streak_key
+    FROM numbered
+)
+SELECT employee_id,
+       MIN(login_day) AS streak_start,
+       MAX(login_day) AS streak_end,
+       COUNT(*) AS consecutive_days
+FROM grouped
+GROUP BY employee_id, streak_key
+HAVING COUNT(*) >= 3
+ORDER BY employee_id, streak_start;
+```
+
+For Oct 1, 2, 3 with row numbers 1, 2, 3, all three dates minus their row numbers give Sep 30. A missing day changes that key and starts another group. Replace `>= 3` with `>= N` for at least N days, or `= 3` for maximal streaks of exactly three days. To return only employee IDs, wrap this result in a CTE and select `DISTINCT employee_id`.
+
+**Common traps:** comparing only day-of-month values (fails across month/year boundaries), counting rows without removing duplicate days, or checking only `MAX(date) - MIN(date)` without verifying that every intervening day exists. Date arithmetic syntax differs in MySQL and SQL Server; these examples follow the cheatsheet's PostgreSQL convention.
 
 ## Stored procedures, functions, and triggers
 
