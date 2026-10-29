@@ -25,7 +25,6 @@ flowchart TB
   INPUT --> C1
   INPUT --> C2
   ANALYSIS --> MONGO[(MongoDB: analysis data)]
-  API --> PG[(PostgreSQL: application data)]
   PDF1 --> OUT[PDF output]
   PDF2 --> OUT
 ```
