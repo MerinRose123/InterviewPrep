@@ -4,7 +4,7 @@ Prioritize **architecture, service boundaries, scale, distributed correctness, f
 
 | Project | Start here | Architecture | Challenges | Scaling / failures | Interview Q&A |
 |---|---|---|---|---|---|
-| EventOps | [Overview](EventOps/01_Project_Overview.md) | [Architecture](EventOps/02_Architecture_and_Data_Flow.md) | [Challenges](EventOps/03_Engineering_Challenges.md) | [Failure scenarios](EventOps/04_Scaling_and_Failure_Scenarios.md) | [Q&A](EventOps/Interview_Questions_and_Answers.md) |
+| EventOps | [Overview](EventOps/01_Project_Overview.md) | [Architecture](EventOps/02_Architecture_and_Data_Flow.md) | [Challenges](EventOps/03_Engineering_Challenges.md) | [Failure scenarios](EventOps/04_Scaling_and_Failure_Scenarios.md) | [Q&A](EventOps/05_Interview_QA.md) |
 | PeopleSoft Cloud Manager | [Overview](peoplesoft/01_Project_Overview.md) | [Architecture](peoplesoft/02_Architecture_and_Data_Flow.md) | [Challenges](peoplesoft/03_Engineering_Challenges.md) | [Failure scenarios](peoplesoft/04_Scaling_and_Failure_Scenarios.md) | [Q&A](peoplesoft/05_Interview_QA.md) |
 | Gordian | [Overview](Gordian/01_Project_Overview.md) | [Architecture](Gordian/02_Architecture_and_Data_Flow.md) | [Challenges](Gordian/03_Engineering_Challenges.md) | [Failure scenarios](Gordian/04_Scaling_and_Failure_Scenarios.md) | [Q&A](Gordian/05_Interview_QA.md) |
 
