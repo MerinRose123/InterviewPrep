@@ -2,7 +2,7 @@
 
 **InApp | September 2019-November 2021 | Merin Rose Tom**
 
-[Interview questions and answers](Interview_Questions_and_Answers.md)
+[Interview questions and answers](05_Interview_QA.md)
 
 
 ---
