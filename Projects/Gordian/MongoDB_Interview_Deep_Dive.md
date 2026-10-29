@@ -1,6 +1,6 @@
 # Gordian: MongoDB schema, queries, and performance
 
-[Project guide](Interview_Guide.md) · [Interview Q&A](Interview_Questions_and_Answers.md)
+[Project guide](Interview_Guide.md) · [Interview Q&A](05_Interview_QA.md)
 
 **Evidence boundary:** MongoDB use for Gordian analysis is documented. Its actual collections, indexes, and original selection rationale are not recovered. Everything below is an illustrative design for the confirmed single-tenant reference-CSV versus competitor-document workflow. Use it to explain design choices; replace examples with remembered production details before saying “we implemented this.”
 
@@ -255,4 +255,4 @@ This is a design for immutable completed comparison results. If scores change wh
 
 ## 9. Why MongoDB rather than Amazon SQS?
 
-These solve different requirements: MongoDB stores queryable analysis records; SQS delivers messages to processing workers. In a possible architecture, file storage holds the upload, SQS carries its file/job ID, and a worker writes analysis results to MongoDB. SQS could replace the Redis broker role after evaluating Celery transport requirements; it does not replace MongoDB queries and aggregations. See the [comparison and interview answer](Interview_Questions_and_Answers.md#mongodb-versus-amazon-sqs). This is an architectural comparison, not a claim that Gordian used SQS.
+These solve different requirements: MongoDB stores queryable analysis records; SQS delivers messages to processing workers. In a possible architecture, file storage holds the upload, SQS carries its file/job ID, and a worker writes analysis results to MongoDB. SQS could replace the Redis broker role after evaluating Celery transport requirements; it does not replace MongoDB queries and aggregations. See the [comparison and interview answer](05_Interview_QA.md#mongodb-versus-amazon-sqs). This is an architectural comparison, not a claim that Gordian used SQS.
