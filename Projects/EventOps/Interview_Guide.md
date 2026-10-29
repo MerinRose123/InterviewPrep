@@ -2,7 +2,7 @@
 
 **InApp | September 2019-November 2021 | Merin Rose Tom**
 
-[Interview questions and answers](Interview_Questions_and_Answers.md)
+[Interview questions and answers](05_Interview_QA.md)
 
 ## 1. Project architecture
 
@@ -585,7 +585,7 @@ Operational diagnosis separates request latency, queue waiting time, task durati
 
 I added Django `prefetch_related()` to reduce database calls and expected faster loading. Load testing exposed an approximately 10-second data-loading delay. I also fixed the code by removing prefetch from the initial load and fetching the additional data conditionally in a subsequent call. This kept optional related-data loading off the initial critical path, at the cost of another call when needed.
 
-The exact relation, dominant cost, and after-fix timing are not yet recalled. The observation demonstrates the importance of matching fetch strategy to actual data use, rather than assuming eager loading always improves performance. A detailed incident answer and suggested verification checks are in the [interview document](Interview_Questions_and_Answers.md#actual-load-testing-regression-eager-prefetch-delayed-initial-loading).
+The exact relation, dominant cost, and after-fix timing are not yet recalled. The observation demonstrates the importance of matching fetch strategy to actual data use, rather than assuming eager loading always improves performance. A detailed incident answer and suggested verification checks are in the [interview document](05_Interview_QA.md#actual-load-testing-regression-eager-prefetch-delayed-initial-loading).
 
 ### Hosting and deployment on EC2
 
