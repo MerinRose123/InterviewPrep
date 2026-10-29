@@ -13,11 +13,11 @@
 
 ### 2. What did you personally contribute?
 
-**Experience answer:** My documented contributions include implementing piracy-detection processing, analyzing and visualizing piracy data, engineering the Celery reporting pipeline, and caching expensive dataset loads. The portfolio also associates my single-tenant backend, Docker, and Nginx work with Gordian. I should explain one specific module or change for each claim and distinguish my implementation from team architecture decisions.
+**Experience answer:** My documented contributions include implementing piracy-detection processing, analyzing and visualizing piracy data, engineering the Celery reporting pipeline, and caching expensive dataset loads. The project used a single-tenant Flask backend and Docker; I cannot currently confirm whether Nginx was used in Gordian. I should explain one specific module or change for each claim and distinguish my implementation from team architecture decisions.
 
 ### 3. Walk me through the architecture.
 
-**Experience answer:** The project combined an Angular frontend, Flask backend, Nginx routing, Docker-packaged services, and EC2 hosting. MongoDB was the project's database for application and analysis data. PostgreSQL was not used. Python, Pandas, and NumPy supported piracy analysis, Matplotlib supported visualization, and Celery generated reports using WeasyPrint with reuse of expensive loaded data. The exact service boundaries, production Redis configuration, and connection paths need confirmation; the guide's diagram reconstructs those logical responsibilities.
+**Experience answer:** The project combined an Angular frontend, Flask backend, Docker-packaged services, and EC2 hosting. MongoDB was the project's database for application and analysis data. PostgreSQL was not used. Python, Pandas, and NumPy supported piracy analysis, Matplotlib supported visualization, and Celery generated reports using WeasyPrint with reuse of expensive loaded data. The exact service boundaries, production Redis configuration, and connection paths need confirmation; the guide's diagram reconstructs those logical responsibilities.
 
 ### 4. What was the business value?
 
@@ -138,9 +138,9 @@
 
 **Experience answer:** Gordian used Flask. Django was not involved in this project. My direct clarification supersedes older career-material stack attributions. I should explain the actual Flask routes, application structure, and Celery integration when discussing implementation.
 
-### 30. What did Docker and Nginx contribute?
+### 30. What did Docker contribute, and was a reverse proxy used?
 
-**Experience answer:** Docker packaged backend services and standardized development environments. Nginx routed traffic and helped integrate the service architecture. I should add an actual route or service example when recalled. Docker and Nginx do not establish a Kubernetes deployment, autoscaling configuration, or particular authentication implementation.
+**Experience answer:** Docker packaged backend components and standardized development environments. I do not currently remember whether Gordian used Nginx, so I would not claim a specific reverse-proxy configuration. If asked about a hypothetical design, I can explain where a reverse proxy might sit without presenting it as a historical implementation.
 
 ### 31. How would you secure a report API?
 
