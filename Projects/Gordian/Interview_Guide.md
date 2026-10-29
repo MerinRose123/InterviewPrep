@@ -22,7 +22,7 @@ The resume and LinkedIn profile place the relevant work under the InApp Software
 
 ### Interview introduction
 
-“At InApp, I worked on Gordian, a single-tenant document/data copying-detection and reporting system. The client supplied a large reference CSV with equipment-related data, and we compared uploaded competitor documents against it to assess copying for client review and possible legal follow-up. I implemented data cleaning, data analysis, and document similarity scoring using Python, Pandas, and NumPy to identify possible plagiarism, and analyzed and visualized more than 50,000 data points using Matplotlib and MongoDB. I also engineered an asynchronous Celery pipeline for PDF reports over 16 GB+ datasets under memory constraints. A shared LRU cache helped eliminate repeated data loads that took around 30 minutes. The backend used Flask, MongoDB, Redis, Docker, and Nginx on AWS EC2.”
+“At InApp, I worked on Gordian, a single-tenant document/data copying-detection and reporting system. The client supplied a large reference CSV with equipment-related data, and we compared uploaded competitor documents against it to assess copying for client review and possible legal follow-up. I implemented data cleaning, data analysis, and document similarity scoring using Python, Pandas, and NumPy to identify possible plagiarism, and analyzed and visualized more than 50,000 data points using Matplotlib and MongoDB. I also engineered an asynchronous Celery pipeline for PDF reports over 16 GB+ datasets under memory constraints. A shared LRU cache helped eliminate repeated data loads that took around 30 minutes. The backend used Flask, MongoDB, Redis, and Docker on AWS EC2.”
 
 Do not describe document fingerprinting, watermark extraction, web crawling, OCR, or a particular classification algorithm as implemented features: the supplied sources do not establish those mechanisms.
 
@@ -35,7 +35,6 @@ flowchart TB
     USER[Analyst / customer]
     UI[Angular UI]
     subgraph EC2["AWS EC2 - backend hosting"]
-        NGINX[Nginx routing]
         API["Flask backend\nSingle-tenant application"]
         subgraph CONTAINERS["Docker-packaged backend components"]
             ANALYSIS["Data cleaning / analytics\nTF-IDF / cosine similarity\nPython / Pandas / NumPy"]
@@ -52,9 +51,7 @@ flowchart TB
     COMPETITOR[Competitor document upload]
     COMPETITOR --> UI
     USER -.-> UI
-    UI -.-> NGINX
-    NGINX --> API
-    API -.-> PG
+    UI -.-> API
     API -.-> ANALYSIS
     ANALYSIS -.-> MONGO
     ANALYSIS -.-> CHARTS
@@ -67,7 +64,7 @@ flowchart TB
     WORKER --> PDF
 ```
 
-**Confirmed components:** Angular is listed in Gordian's portfolio skills; Flask, MongoDB, Redis, Celery, AWS EC2, Docker, Nginx, Python, Pandas, NumPy, Matplotlib, and MongoDB appear in its project bullets or supporting career materials, with the tenancy correction above. Nginx routed traffic, and Docker packaged services. Celery generated reports, with shared LRU caching of expensive data loads.
+**Confirmed components:** Angular is listed in Gordian's portfolio skills; Flask, MongoDB, Redis, Celery, AWS EC2, Docker, Python, Pandas, NumPy, Matplotlib, and MongoDB appear in its project bullets or supporting career materials, with the tenancy correction above. Docker packaged services; whether Nginx was used in Gordian is not currently confirmed. Celery generated reports, with shared LRU caching of expensive data loads.
 
 **Reconstruction limits:** The API-to-analysis contract, MongoDB read/write paths, production Redis configuration, frontend report delivery, and worker placement are not documented. The EC2 box groups the backend hosting environment; it does not assert one machine. Docker grouping does not establish one container per box. The application was single-tenant. Redis is explicitly the broker in the published example; the production configuration is not independently recovered.
 
@@ -104,7 +101,7 @@ The documented optimization removes repeated loading work; it does not prove a 3
 |---|---|---|
 | UI | Angular | Listed for Gordian; specific screens and personal UI ownership unspecified |
 | Backend | Python, Flask | Single-tenant Flask backend confirmed directly by Merin |
-| Routing | Nginx | Route traffic and integrate backend services |
+| Reverse proxy | Not confirmed | Do not claim Nginx was used in Gordian without deployment evidence |
 | Runtime packaging | Docker | Package services and standardize development environments |
 | Hosting | AWS EC2 | Backend hosting; instance count and topology unknown |
 | Database | MongoDB | Application and analysis persistence; PostgreSQL was not used |
@@ -241,7 +238,7 @@ Redis dispatched Celery work in the published implementation pattern. The in-pro
 
 ## 6. Single-tenant backend, persistence, and deployment
 
-Merin confirms this application served one client as a single-tenant system. Multiple users, uploads, and reports do not imply multiple tenants. Flask, MongoDB, Redis, Celery, Docker, Nginx, and EC2 are listed in the project materials; the exact service boundaries and deployment automation remain unspecified.
+Merin confirms this application served one client as a single-tenant system. Multiple users, uploads, and reports do not imply multiple tenants. Flask, MongoDB, Redis, Celery, Docker, and EC2 are listed in the project materials; the exact service boundaries and deployment automation remain unspecified.
 
 Authorization still needs to protect reference files, competitor uploads, and report access. A useful design discussion covers permitted users, file validation, dataset versions, and comparison-job ownership without inventing a tenant-routing layer.
 
@@ -256,7 +253,7 @@ MongoDB was the only database used by Gordian; there was no PostgreSQL applicati
 | Celery PDF pipeline for 16 GB+ datasets | All three; portfolio names Gordian | Large-data reporting; no verified final runtime or RAM figure |
 | Shared LRU cache avoiding repeated 30-minute loads | LinkedIn and portfolio; resume says in-memory task cache | Data reuse optimization; published local-memory cache pattern; production pool settings unknown |
 | Single-tenant Flask backend on EC2 | Stack in career materials; tenancy corrected directly by Merin | Single-client application; older multi-tenant attribution superseded |
-| Docker and Nginx | All three; portfolio names Gordian | Packaging and routing contribution |
+| Docker | Project materials | Packaging contribution; reverse-proxy choice not confirmed |
 | 15% operational-efficiency improvement | Resume and LinkedIn InApp role | Role-level metric; Gordian attribution and measurement need confirmation |
 
 ### STAR answer: reporting optimization
