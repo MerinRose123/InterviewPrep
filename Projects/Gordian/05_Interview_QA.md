@@ -17,7 +17,7 @@
 
 ### 3. Walk me through the architecture.
 
-**Experience answer:** The project combined an Angular frontend, Flask backend, Nginx routing, Docker-packaged services, and EC2 hosting. PostgreSQL supported the backend stack, while MongoDB was associated with analysis data. Python, Pandas, and NumPy supported piracy analysis, Matplotlib supported visualization, and Celery generated reports using WeasyPrint with reuse of expensive loaded data. The exact service boundaries, production Redis configuration, and connection paths need confirmation; the guide's diagram reconstructs those logical responsibilities.
+**Experience answer:** The project combined an Angular frontend, Flask backend, Nginx routing, Docker-packaged services, and EC2 hosting. MongoDB was the project's database for application and analysis data. PostgreSQL was not used. Python, Pandas, and NumPy supported piracy analysis, Matplotlib supported visualization, and Celery generated reports using WeasyPrint with reuse of expensive loaded data. The exact service boundaries, production Redis configuration, and connection paths need confirmation; the guide's diagram reconstructs those logical responsibilities.
 
 ### 4. What was the business value?
 
@@ -125,9 +125,9 @@
 
 ## Backend, databases, and security
 
-### 27. Why did the system use PostgreSQL and MongoDB?
+### 27. Which database did Gordian use?
 
-**Experience answer:** PostgreSQL was in the single-tenant backend stack, and MongoDB was associated with piracy analysis and visualization. The exact data ownership and original selection rationale are unrecorded. **Design follow-up:** I would choose storage based on query patterns, consistency constraints, schema shape, and operational cost, and explicitly define which store owns each fact.
+**Experience answer:** Gordian used MongoDB as its database; it did not use PostgreSQL. MongoDB stored the application's persisted data, including analysis-related records. **Design follow-up:** Compare document and relational models based on access patterns, consistency constraints, and query needs.
 
 ### 28. Was Gordian multi-tenant?
 
@@ -176,9 +176,9 @@
 
 The [MongoDB deep dive](MongoDB_Interview_Deep_Dive.md) includes an illustrative schema, validation, mongosh/PyMongo reads, aggregation, indexes, explain plans, and pagination code. These are proposed examples; the historical collection design remains unverified.
 
-### 38. Why did you use MongoDB rather than PostgreSQL?
+### 38. How would you compare MongoDB with PostgreSQL for a similar system?
 
-**Experience boundary:** MongoDB use for analysis is documented; the original selection rationale is not. **Design answer:** Equipment records can have varying nested attributes, and comparison outputs can fit a document model. I would choose based on access patterns, consistency needs, and operational cost. PostgreSQL with JSONB could also work. [Tradeoffs](MongoDB_Interview_Deep_Dive.md#1-why-mongodb-why-not-postgresql).
+**Experience answer:** Gordian used MongoDB, not PostgreSQL. **Hypothetical design comparison:** Equipment records can have varying nested attributes, and comparison outputs can fit a document model. I would choose based on access patterns, consistency needs, and operational cost. PostgreSQL with JSONB could also work. [Tradeoffs](MongoDB_Interview_Deep_Dive.md#1-why-mongodb-why-not-postgresql).
 
 ### 39. How did you create the schema?
 
