@@ -220,6 +220,60 @@ The [MongoDB deep dive](MongoDB_Interview_Deep_Dive.md) includes an illustrative
 
 **Design answer:** Match one comparison, then group candidate records for counts and similarity statistics. Multiple candidates can refer to the same uploaded row, so define deduplication and the denominator before presenting a copying amount. [Aggregation code](MongoDB_Interview_Deep_Dive.md#4-how-do-you-aggregate-results).
 
+## Redis versus RabbitMQ
+
+### 49. Why did you use Redis instead of RabbitMQ for Gordian?
+
+**Interview answer:** “We used Redis as the Celery broker. For this workflow, the broker needed to dispatch small comparison/report jobs, while workers performed the expensive processing. Redis was a reasonable fit for that straightforward task-queue requirement. The large reference data was not the task message, and our reusable dataset cache was an in-process Celery LRUCache, not Redis. RabbitMQ was also a valid option; I would consider it when messaging-specific routing and delivery-control requirements justify a dedicated broker.”
+
+**Evidence boundary:** Redis as broker is documented in the published example. The small-message architecture is the selected recommendation, and the original team's selection rationale and production settings are not recovered. Present this as why the choice fits the workload; do not claim a benchmark, lower cost, or a documented RabbitMQ evaluation.
+
+| Concern | Redis with Celery | RabbitMQ with Celery | Relevance to Gordian |
+|---|---|---|---|
+| Role | In-memory data store used as broker; can separately be a result backend | Dedicated message broker | Both support Celery task dispatch |
+| Task payload | Good fit for small task messages | Also suitable for small task messages | Send IDs/versions, not CSVs, DataFrames, or PDF bytes |
+| Routing | Celery queue routing is available | Exchanges and bindings provide richer broker-level routing | A few worker queues do not alone require complex routing |
+| Redelivery | Celery Redis transport uses visibility timeout for unacknowledged deliveries | Consumer acknowledgements and requeueing; acknowledgment-timeout policies also matter | Align failure handling with long-running jobs |
+| Persistence | Redis persistence/HA and memory configuration must be deliberate | Queue type, durability, message persistence, and replication must be deliberate | Neither name alone establishes loss-free processing |
+| Publisher confirmation | Do not assume RabbitMQ-style publisher-confirm semantics | Supports publisher confirms separately from consumer acknowledgements | Broker acceptance is distinct from task completion |
+| Result storage | Can additionally hold task state/results if configured | A result backend is a separate choice; Celery supports an RPC backend | Redis broker use does not prove Redis result-backend use |
+| Dataset caching | Separate from this project's in-process LRUCache | Also separate from the worker's local LRUCache | Switching brokers would not inherently remove the cache optimization |
+| Operational choice | Can avoid adding another broker if Redis is already operated for suitable purposes | Adds a messaging-specific service if none already exists | Actual deployment and operational costs need evidence |
+
+Sources: [Celery broker overview](https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/index.html), [Celery Redis transport](https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/redis.html), [RabbitMQ acknowledgements and confirms](https://www.rabbitmq.com/docs/confirms). Technical behavior should be checked against the versions deployed; these links describe current documentation.
+
+### 50. What is the main Redis caveat for long-running Celery tasks?
+
+**Design answer:** With late acknowledgments, a task can remain unacknowledged during processing. If that exceeds the Redis transport's visibility timeout, it may be redelivered while the original execution is still running. Check acknowledgment mode, task runtime bounds, visibility settings, and retries together. Early acknowledgment has a different risk: a worker crash after acknowledgment can lose that delivery. Make report publication idempotent and track job status durably rather than claiming exactly-once execution. Simply making the timeout very large delays recovery after failures. [Redis caveats](https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/redis.html#caveats).
+
+### 51. Would RabbitMQ guarantee that each report runs exactly once?
+
+**Answer:** No. Publisher confirms acknowledge broker acceptance, while consumer acknowledgements address delivery processing. Failures and retries can still produce duplicates, so the application needs idempotent report generation/publication and durable job identity. Neither a broker choice nor an acknowledgement proves that the client received a completed PDF. [RabbitMQ confirms](https://www.rabbitmq.com/docs/confirms).
+
+### 52. When would you choose RabbitMQ instead?
+
+**Design answer:** When requirements call for richer exchange/binding routing, messaging-specific operational controls, and explicit publisher-confirm workflows, I would evaluate RabbitMQ against the required queue type, replication, throughput, and failure model. I would also check its consumer acknowledgement timeouts for long tasks. I would not switch merely because the input CSV is large: input size belongs to the worker/storage design when messages carry only identifiers.
+
+## MongoDB versus Amazon SQS
+
+### 53. Why use MongoDB instead of Amazon SQS if documents can be processed through SQS?
+
+**Interview answer:** “MongoDB supported analysis data and queries. Amazon SQS handles asynchronous message delivery, so it would be an alternative at the messaging layer rather than a replacement for MongoDB. A worker could receive a document-processing request from SQS and still store its analysis results in MongoDB.”
+
+| Requirement | MongoDB | Amazon SQS |
+|---|---|---|
+| Store analysis records for repeated retrieval | Document database | Messages retained until deletion or retention expiry |
+| Query by document ID, score, or other fields | Indexed filters and queries | No equivalent general database querying |
+| Aggregate findings for reports | Aggregation operations | Consumer performs analysis and persists results elsewhere |
+| Dispatch processing requests | Separate queue generally appropriate | Managed message queue |
+| Role in a possible Gordian design | Analysis persistence and retrieval | Alternative to Redis's Celery broker role, subject to transport requirements |
+
+**Possible design, not historical deployment:** Store uploaded files in file/object storage; queue a small message containing file/job identifiers; let a worker perform cleaning and similarity scoring; persist analysis records/results in MongoDB. SQS transports processing requests, not a queryable document repository. Its ability to carry messages about documents does not replace database storage or file storage.
+
+If an interviewer says “document streaming,” clarify whether they mean SQS, S3, or Amazon DocumentDB: these address messaging, object storage, and document-database workloads respectively. Do not claim Gordian used these AWS services without evidence.
+
+Sources: [AWS SQS overview](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html), [MongoDB overview](https://www.mongodb.com/docs/manual/).
+
 ## Final rehearsal checklist
 
 - Deliver the 60-second introduction, then draw the architecture from the companion guide.

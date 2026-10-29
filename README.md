@@ -14,15 +14,15 @@ A personal interview-preparation repository covering coding problems, language f
 | [Django and Flask cheatsheet](Django_Flask_CheatSheet.md) | Framework behavior, ORM, migrations/indexing, authentication, APIs, background work, testing, and performance |
 | [Spring Boot cheatsheet](SpringBoot_CheatSheet.md) | Dependency injection, proxies, transactions, JPA, security, reliability, testing, and production diagnosis |
 | [Database cheatsheet](Database_CheatSheet.md) | SQL, schema design, indexes, transactions/isolation, replication, read replicas, partitioning/sharding, NoSQL, and recovery |
-| [System design study index](System_Design/README.md) | 19 focused cheatsheets, suggested study order, resume deep dives, and practical design exercises |
-| [Project interview guides](Projects/README.md) | Project narratives, architecture walkthroughs, personal contributions, and interview Q&A; starting with EventOps |
+| [System design study index](System_Design/README.md) | 21 focused topic guides, suggested study order, resume deep dives, and practical design exercises |
+| [Project interview guides](Projects/README.md) | EventOps and Gordian narratives, architecture diagrams, technology stacks, personal contributions, and interview Q&A |
 
 ## System design coverage
 
 - **Performance:** Redis/caching/CDN, memory profiling, consistent hashing, Bloom filters, approximate data structures, rate limiting.
 - **Communication and correctness:** Kafka/queues, delivery semantics, REST, microservices, consistency/quorum, distributed locks, leader election, Saga/outbox.
 - **Identity and security:** JWT, OAuth/OIDC/PKCE, RBAC, browser storage/cookies, password hashing/bcrypt, encryption, Shamir sharing, secrets rotation, tenant isolation.
-- **Platform and operation:** Kubernetes, containers, storage/networking, autoscaling, observability/SLOs, Terraform/OpenTofu, CI/CD, disaster recovery.
+- **Platform and operation:** Kubernetes, containers, storage/networking, AWS ingress/egress and security groups/NACLs, autoscaling, observability/SLOs, Terraform/OpenTofu, CI/CD, disaster recovery.
 - **Project-oriented design:** search/reindexing, durable cloud workflows, large-data/Celery pipelines, RAG/AI agents, and design patterns.
 
 See the [full topic map](System_Design/README.md#topic-map) for all files.

@@ -1,6 +1,6 @@
 # Cloud and Kubernetes Interview Cheat Sheet
 
-[Study index](README.md) · Related: [infrastructure automation](Infrastructure_Automation_CheatSheet.md), [observability](Observability_CheatSheet.md), [security](Multi_Tenancy_Security_CheatSheet.md).
+[Study index](README.md) · Related: [infrastructure automation](Infrastructure_Automation_CheatSheet.md), [observability](Observability_CheatSheet.md), [security](Multi_Tenancy_Security_CheatSheet.md), [AWS networking and security](AWS_Networking_Security_CheatSheet.md).
 
 YAML and commands are illustrative; do not apply them to a cluster without adapting images, resources, networking, permissions, and version support.
 

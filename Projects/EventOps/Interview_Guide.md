@@ -167,7 +167,7 @@ Tenant isolation was probably implemented through separate PostgreSQL schemas wi
 | Calendar integration | Out-of-office source | Used for availability checks; API/provider and relation to SSO unverified |
 | Tenant architecture | Django multi-tenancy | Multi-tenant application; exact package and schema mechanism unverified |
 | Background infrastructure | Redis | Used with Celery; exact broker/result-backend configuration not recalled |
-| Containers | Docker | Separate image per service; image builds and container deployment |
+| Containers | Docker, Docker Compose | Separate image per service; YAML-based multi-container startup and networking |
 | Traffic routing | Nginx | Routing requests to backend components |
 | Unit testing | pytest, mocking | Isolated tests and improved important-area coverage |
 | Reporting template | HTML populated with event contents | Reusable report structure separated from event-specific data |
@@ -603,9 +603,182 @@ Container deployment on EC2
 Nginx routes requests to service
 ```
 
-This describes the confirmed build/deployment mechanism. Version tagging is a recommended practice in the illustration; the actual tag convention, registry, build location, image transfer, Compose/orchestration tooling, and release automation are unknown. A command such as `docker build -t eventops-spaces:example ./spaces` is an illustrative build, not a historical command or a command executed here. See [Docker build concepts](https://docs.docker.com/build/concepts/overview/); current build internals do not establish the 2019-2021 builder configuration.
+This describes the confirmed build/deployment mechanism. Version tagging is a recommended practice in the illustration; the actual tag convention, registry, build location, image transfer, exact Compose configuration, and release automation are unknown. Docker Compose is recalled as the multi-container deployment mechanism. A command such as `docker build -t eventops-spaces:example ./spaces` is an illustrative build, not a historical command or a command executed here. See [Docker build concepts](https://docs.docker.com/build/concepts/overview/); current build internals do not establish the 2019-2021 builder configuration.
 
 Images package code and dependencies; containers run those images. Environment-specific configuration belongs at runtime, and secrets should not be baked into image layers. Updating a container does not itself run safe schema migrations, drain Celery work, or provide zero-downtime rollback. Reference release checks include service readiness, route verification, backward-compatible migrations, and preserving a usable previous image. Exact historical controls remain unverified.
+
+### Docker Compose: running the services together
+
+Merin recalls Docker Compose as the mechanism for describing and starting the multi-container application. Each service had its own Docker image; Compose described how containers were started together, connected, and configured. A YAML file removes the need to maintain a separate long `docker run` command for every component. The exact historical YAML and Compose version are not available.
+
+An image packages a service; a container is a running instance; Compose defines the collection of services, networks, volumes, and runtime settings. Several services can also use the same image with different commands—for example a worker and Beat scheduler, if their code supports that. See [Compose application model](https://docs.docker.com/compose/intro/compose-application-model/).
+
+#### Illustrative Compose YAML
+
+This is a teaching example, not a recovered or runnable EventOps deployment. It uses placeholder image names and application commands. Nginx configuration, Dockerfiles, actual secrets/configuration, PostgreSQL location, and application code must be supplied. The example shows two API services to keep the structure readable; other capabilities follow the same pattern.
+
+```yaml
+services:
+  nginx:
+    image: nginx:example-version
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks: [backend]
+    depends_on: [spaces, equipment]
+
+  spaces:
+    build: ./services/spaces
+    image: eventops-spaces:example-version
+    environment:
+      EQUIPMENT_URL: http://equipment:8000
+    networks: [backend]
+
+  equipment:
+    build: ./services/equipment
+    image: eventops-equipment:example-version
+    networks: [backend]
+
+  redis:
+    image: redis:example-version
+    networks: [backend]
+
+  worker:
+    image: eventops-tasks:example-version
+    command: celery -A example_tasks worker --loglevel=info
+    networks: [backend]
+    depends_on: [redis]
+
+  beat:
+    image: eventops-tasks:example-version
+    command: celery -A example_tasks beat --loglevel=info
+    networks: [backend]
+    depends_on: [redis]
+
+networks:
+  backend:
+    driver: bridge
+```
+
+`build` selects a source build context; `image` names the built or fetched artifact; `command` selects the container process. `ports` publishes a port on the host. Only Nginx is published in this example; the API services use container ports on the shared network. Each API process must listen on its container interface, such as `0.0.0.0:8000`, rather than only loopback.
+
+`depends_on` here controls startup order, not application readiness. Health checks with appropriate conditions can gate initial startup; application clients still need runtime reconnection and bounded retries when dependencies fail later. See [Compose startup behavior](https://docs.docker.com/compose/how-tos/startup-order/).
+
+Useful commands include `docker compose config` to validate/resolve configuration, `docker compose build` to build, `docker compose up -d` to create/start, `docker compose ps` to inspect, and `docker compose logs <service>` to diagnose. Older Compose installations used `docker-compose`; the historical EventOps command spelling is unverified. These commands are examples, not executed here.
+
+#### Common Docker Compose commands
+
+Commands below are study examples, not executed here. They use modern `docker compose`; older installations commonly used `docker-compose`. Service names refer to the illustrative YAML above. Run from the Compose-file directory or select a file with `-f`. See the [Compose CLI reference](https://docs.docker.com/reference/cli/docker/compose/).
+
+| Task | Command |
+|---|---|
+| Version | `docker compose version` |
+| Validate YAML/configuration | `docker compose config --quiet` |
+| List configured services | `docker compose config --services` |
+| Build images | `docker compose build` |
+| Build one service | `docker compose build spaces` |
+| Rebuild without layer cache | `docker compose build --no-cache spaces` |
+| Start in background | `docker compose up -d` |
+| Build and start | `docker compose up -d --build` |
+| Update one service | `docker compose up -d --build --no-deps spaces` |
+| List containers/status | `docker compose ps -a` |
+| Follow recent service logs | `docker compose logs -f --tail=100 spaces` |
+| Open a running container's shell | `docker compose exec spaces sh` |
+| One-off container command | `docker compose run --rm spaces python --version` |
+| Pull configured images | `docker compose pull` |
+| Restart existing container | `docker compose restart spaces` |
+| Stop, retain containers | `docker compose stop` |
+| Start stopped containers | `docker compose start` |
+| Remove application containers/networks | `docker compose down` |
+| Select file/project | `docker compose -f compose.yaml -p eventops up -d` |
+
+`restart` does not rebuild an image or apply changed Compose environment settings; use `up` to reconcile changes. `--no-deps` skips dependency startup, so use it only when existing dependencies remain suitable. `run --rm` creates a one-off container; `exec` uses a running one. Migrations are application commands and need a deliberate release plan, not an automatic command to run in every replica.
+
+`down` normally retains named volumes. `docker compose down -v` additionally removes declared named volumes and attached anonymous volumes; this can delete persisted data and is not a routine production cleanup step. External volumes are managed separately.
+
+A reference troubleshooting sequence is status → service logs → runtime configuration → dependency connectivity/readiness. Full `docker compose config` output may reveal interpolated values; do not paste secrets from it into logs or interviews.
+
+#### Reading the YAML contents
+
+| YAML key | Meaning in the example |
+|---|---|
+| `services` | Defines container workloads |
+| Service name, e.g. `spaces` | Compose identity and network discovery name |
+| `build` | Build context containing source/Dockerfile |
+| `image` | Image name and tag |
+| `command` | Overrides the image's default command |
+| `environment` | Runtime variables; not a secret vault |
+| `ports` | Host-to-container port mapping |
+| `volumes` | Mounts host paths or persistent volumes |
+| `networks` | Connects services to declared networks |
+| `depends_on` | Declares startup dependencies |
+| `healthcheck` | Defines a container health probe |
+| `restart` | Container restart policy |
+
+These are Compose concepts, not claims that every key appeared in EventOps. See the [service configuration reference](https://docs.docker.com/reference/compose-file/services/).
+
+For example, `"8080:80"` means host port 8080 forwards to container port 80; a peer container normally calls the service's container port. The Nginx read-only bind mount supplies routing configuration from the host. A named volume serves a different purpose: persistent data independent of a particular container.
+
+A minimal example of the latter keys is:
+
+```yaml
+services:
+  redis:
+    image: redis:example-version
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redis-data:/data
+
+  worker:
+    image: eventops-tasks:example-version
+    command: celery -A example_tasks worker --loglevel=info
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  redis-data:
+```
+
+This separate teaching fragment uses the default Compose network. It is not a drop-in replacement for the earlier file: those services explicitly join `backend`. Image tags and task modules remain placeholders. A volume mount does not itself configure Redis durability; persistence policy still matters. A health check reports health, while a restart policy responds to process/container exit conditions—not simply an unhealthy status. Historical health checks, restart settings, and volume configuration remain unknown.
+
+#### Container networking versus VPC networking
+
+On a shared Compose network, containers can discover services by name: `http://equipment:8000` addresses the equipment service's container port. `localhost` inside a container addresses that container, not the EC2 host or another service. The network name `backend` is only a label; it does not authenticate callers. See [Compose networking](https://docs.docker.com/compose/how-tos/networking/).
+
+A Compose bridge typically connects containers on one Docker host. It does not automatically span EC2 instances. Cross-host calls need appropriate private addressing, routing, discovery, and access rules. Browser-to-Nginx routing and internal service-to-service calls are distinct paths.
+
+```mermaid
+flowchart LR
+    B[Browser] --> ENTRY[Public entry / Nginx]
+    subgraph VPC[AWS VPC - network boundary]
+        subgraph HOST[EC2 host]
+            subgraph NET[Docker Compose network]
+                ENTRY --> S[Spaces]
+                ENTRY --> E[Equipment]
+                S -->|Internal HTTP| E
+            end
+        end
+    end
+```
+
+This diagram illustrates layers, not the verified subnet/host topology. Merin recalls the VPC as the explanation for internal connectivity/trust; exact security-group rules, subnet placement, and internal request credentials are unknown.
+
+A VPC supplies the AWS network boundary; security groups control permitted traffic to/from associated resources. Restricting ingress to approved sources and ports reduces exposure, but does not prove the identity of an application caller. See [AWS security groups](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-security-groups.html).
+
+#### Explaining internal calls without per-request authentication
+
+A historically plausible design trusted callers on a restricted private network rather than authenticating each internal request. That is an explicit trust assumption: a compromised allowed host/container may reach the same endpoints. Private connectivity does not supply encryption, tenant authorization, or service identity by itself.
+
+If this matches the actual implementation, explain it as “internal access was restricted at the network layer,” rather than “VPC authenticated our services.” User/tenant context and admin permissions still need protection. Stronger designs can add scoped service credentials or mutual TLS plus authorization. These are possible improvements, not confirmed EventOps features.
+
+Compose simplifies a multi-container deployment, but ordinary single-host use does not supply multi-host failover, automatic placement, or zero-downtime release guarantees. A failed host can affect all co-located services; the actual EventOps host count and recovery arrangement remain unknown.
 
 ### PDF persistence in Amazon S3
 
@@ -617,7 +790,7 @@ For a reference secure download design, the backend checks user/tenant access be
 
 ## 14. Implementation notes and sources
 
-Confirmed details and clearly labeled reference explanations are kept separate. Remaining unknowns are the exact deployed service boundaries/names, table/write ownership, inter-service REST details (tentative recollection), tenancy package/context selection, calendar integration, Beat schedule configuration, historical renderer/template engine, SendGrid integration method, EC2 topology/image registry/S3 access configuration, exact auth/decorator configuration and identity propagation, rollout, and exact coverage scope. No private EventOps source code has been inspected.
+Confirmed details and clearly labeled reference explanations are kept separate. Remaining unknowns are the exact deployed service boundaries/names, table/write ownership, inter-service REST details (tentative recollection), tenancy package/context selection, calendar integration, Beat schedule configuration, historical renderer/template engine, SendGrid integration method, EC2/VPC topology, security-group rules, exact Compose YAML/image registry/S3 access configuration, exact auth/decorator configuration and identity propagation, rollout, and exact coverage scope. No private EventOps source code has been inspected.
 
 The 16 GB CSV pipeline, shared LRU cache, piracy analytics, and Oracle/OCI work are not attributed to EventOps without evidence.
 

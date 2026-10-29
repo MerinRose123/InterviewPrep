@@ -14,6 +14,7 @@ Examples illustrate design choices, not universal defaults. Redis commands assum
 - [6. Why use Redis, and how do you scale it?](#6-why-use-redis-and-how-do-you-scale-it)
 - [7. How does a CDN work, and what belongs in the cache key?](#7-how-does-a-cdn-work-and-what-belongs-in-the-cache-key)
 - [8. What should you measure and test?](#8-what-should-you-measure-and-test)
+- [9. Interview answer: Redis TTL, old data removal, and consistency](#9-interview-answer-redis-ttl-old-data-removal-and-consistency)
 - [References](#references)
 
 ## 1. When does caching help, and when does it hurt?
@@ -146,6 +147,59 @@ Browser freshness and shared-cache freshness can differ. Put immutable content a
 Track hit/miss ratio, cache/source latency, evictions, memory, hot keys, item sizes, refresh failures, and source QPS during cold starts. Test cache unavailability, mass expiry, stale refill races, tenant key collisions, and a source slowdown. Compare endpoint p95/p99 and write cost, not just GET benchmarks.
 
 **Resume drill:** explain the actual process boundary of your “in-memory task cache.” A Python dictionary in one Celery process is not shared automatically with other processes or machines.
+
+## 9. Interview answer: Redis TTL, old data removal, and consistency
+
+**Question:** What is Redis TTL? How do you remove old cached data and keep the cache consistent across application instances?
+
+### TTL and removing old data
+
+TTL (Time To Live) specifies how long a key remains valid. After expiry, Redis treats the key as missing. Redis removes expired keys when accessed and through background expiration checks; physical removal need not happen at the exact expiry instant.
+
+```redis
+SET user:123 '{"name":"Merin"}' EX 300
+TTL user:123
+EXPIRE user:123 600
+DEL user:123
+```
+
+- `EX 300` sets a five-minute expiry atomically with the value.
+- `TTL` returns remaining seconds: `-1` means no expiry; `-2` means the key does not exist.
+- `EXPIRE` changes an existing key's expiry to ten minutes from now. Ordinary reads do not extend TTL.
+- `DEL` explicitly invalidates the entry, for example after a database update.
+
+| Meaning of “old” | Removal strategy |
+|---|---|
+| Older than the allowed freshness duration | Set a TTL |
+| Database record has changed | Invalidate the corresponding key after commit |
+| Redis has reached its configured `maxmemory` limit | Use an eviction policy such as `allkeys-lru` or `allkeys-lfu` |
+| Cache schema or dataset version has changed | Switch to a versioned key prefix; expire or clean up the old namespace |
+
+LRU approximates least recently used entries; LFU favors frequently used entries. Neither determines whether a value matches the database. Expiration, memory eviction, and application invalidation solve different problems.
+
+### Consistency across instances
+
+Use the database as the source of truth and a shared Redis cache with cache-aside:
+
+```text
+Read:  Redis hit → return value
+       Redis miss → read database → cache with TTL → return value
+
+Write: update database → commit → delete corresponding Redis key
+```
+
+Delete after commit so readers do not refill from the pre-commit database state simply because invalidation ran too early. All application instances must use the same key conventions, including tenant and version where needed. If they also maintain local caches, those copies need their own invalidation or expiry policy.
+
+This still provides eventual consistency, not an atomic database-and-cache update. A reader can publish an old value after invalidation (see section 3), and a writer can crash after commit but before deleting the cache key.
+
+- **Reliable invalidation:** write an outbox event in the same database transaction, then retry invalidation through a consumer; alternatively, use CDC to capture committed changes. Account for delivery lag and duplicate events.
+- **Ordering:** when publishing cached values, use source versions and atomic conditional updates to reject older values. The comparison needs a retained version or watermark; deleting the key and its version alone cannot stop every stale refill.
+- **Fallback freshness:** use TTL to limit the lifetime of stale entries. TTL alone does not guarantee a strict bound on source-data age if stale reads can refill the cache.
+- **Strictly current decisions:** read from the authoritative database/service using the required transaction and read guarantees. A lagging database replica can also return stale data.
+
+**Concise interview answer:**
+
+> “I would use cache-aside with TTL, update the database first, and invalidate the cache after commit. TTL limits how long cached entries survive, while invalidation refreshes changed data sooner. For reliable invalidation across instances, I would use an outbox or CDC. Concurrent stale refills still need version checks or coordination, so I would describe this as eventual consistency and use the authoritative database for decisions requiring strict consistency.”
 
 ## References
 

@@ -1,6 +1,6 @@
 # System Design Interview Preparation
 
-Practical senior-engineer revision: **19 topic cheatsheets plus this index**. Each sheet combines mechanisms, examples, tradeoffs, failure scenarios, verification, and deeper follow-up questions. Diagrams/configuration are explanatory; placeholders and example numbers must be adapted and measured before use.
+Practical senior-engineer revision: **21 topic guides plus this index**. Each sheet combines mechanisms, examples, tradeoffs, failure scenarios, verification, and deeper follow-up questions. Diagrams/configuration are explanatory; placeholders and example numbers must be adapted and measured before use.
 
 ## Topic map
 
@@ -13,6 +13,8 @@ Practical senior-engineer revision: **19 topic cheatsheets plus this index**. Ea
 | [Cryptography, passwords, and secrets](Cryptography_Passwords_Secrets_CheatSheet.md) | Hashing/encryption/signing, password storage, bcrypt/Argon2id, salts/peppers, Shamir, rotation |
 | [Distributed systems](Distributed_Systems_CheatSheet.md) | CAP, consistency, quorum, leases/fencing, leader election, 2PC, Saga |
 | [Cloud and Kubernetes](Cloud_Kubernetes_CheatSheet.md) | Object storage, containers, architecture, probes, autoscaling, networking, deployment/DR |
+| [AWS networking and security](AWS_Networking_Security_CheatSheet.md) | Ingress/egress, security groups vs. NACLs, stateful/stateless rules, VPC routing, NAT, configuration and troubleshooting |
+| [OCI vs. AWS](OCI_vs_AWS_Interview_Guide.md) | Cloud comparison, when to choose each, service mappings, cost, availability, Oracle databases and interview answers |
 | [Observability](Observability_CheatSheet.md) | Logs/metrics/traces/profiles, SLOs, tail latency, capacity, incident response |
 | [Memory profiling and performance](Memory_Profiling_Performance_CheatSheet.md) | Leaks vs. churn, heap/RSS/native memory, Java/Python profiling, OOMKilled |
 | [Multi-tenancy and security](Multi_Tenancy_Security_CheatSheet.md) | Isolation, placement, noisy neighbors, IAM, network boundaries, lifecycle/audit |
@@ -30,7 +32,7 @@ Practical senior-engineer revision: **19 topic cheatsheets plus this index**. Ea
 
 1. **Core API and data:** REST → authentication → browser storage → cryptography → [database design/indexing/isolation](../Database_CheatSheet.md).
 2. **Scale and failure:** caching → algorithms → messaging/Kafka → distributed systems → microservices.
-3. **Production operation:** cloud/Kubernetes → observability → memory profiling → multi-tenancy/security.
+3. **Production operation:** cloud/Kubernetes → AWS networking/security → observability → memory profiling → multi-tenancy/security.
 4. **Resume deep dives:** workflow orchestration → large-data processing → infrastructure automation → search → RAG/agents.
 5. **Design vocabulary:** patterns alongside [OOP/SOLID](../OOP_CheatSheet.md); revisit them while explaining real projects.
 
@@ -65,6 +67,7 @@ For each answer: **mechanism → example → tradeoff → failure → evidence**
 
 | Exercise | Main sheets | Failure to walk through |
 |---|---|---|
+| [Idempotent order creation (pseudocode)](REST_API_Design_CheatSheet.md#interview-example-create-an-order-safely-on-retry) | REST, database transactions | Order commits but the response is lost; client retries |
 | Tenant-aware export service | REST, background processing, memory, security | Worker dies after upload but before checkpoint |
 | Cloud environment orchestrator | Workflows, infrastructure, distributed systems | Resource created but provider response lost |
 | Search platform migration | Search, messaging, observability | Update/delete races during reindex |

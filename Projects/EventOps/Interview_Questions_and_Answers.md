@@ -269,7 +269,7 @@ Each answer follows **mechanism → example → tradeoff → failure → evidenc
 
 **Failure:** Wrong image tags, missing runtime variables, dependency differences, incompatible migrations, or duplicate Beat schedulers can break a release. Suggested controls include known image versions, smoke checks, compatible migrations, graceful worker handling, and rollback planning.
 
-**Evidence:** Per-service images, Docker builds/deployment, EC2 hosting, and Nginx routing are confirmed. Registry, build location, Docker Compose, CI/CD, orchestration, and zero-downtime release mechanics are not. [Docker build overview](https://docs.docker.com/build/concepts/overview/).
+**Evidence:** Per-service images, Docker builds/deployment, EC2 hosting, and Nginx routing are confirmed. Docker Compose is recalled for multi-container deployment. Registry, build location, exact Compose YAML/version, CI/CD, and zero-downtime release mechanics remain unknown. [Docker build overview](https://docs.docker.com/build/concepts/overview/).
 
 #### A21. What did EC2 provide, and how would you scale or roll back?
 
@@ -296,6 +296,34 @@ Each answer follows **mechanism → example → tradeoff → failure → evidenc
 **Evidence:** SSO/manual login, Django authentication, and admin decorators are confirmed. OIDC/SAML, provider, tokens, PKCE, and session details are not. Explain one reference protocol clearly while identifying it as conceptual.
 
 **Spoken answer:** “SSO delegates identity verification to a provider the application trusts. The browser is redirected there, the provider authenticates the user, and the application validates the response before establishing local login. Roles and tenant access are still application checks. EventOps supported SSO and manual login, but I don't recall whether its integration used OIDC or SAML.”
+
+#### A23. Why use Docker Compose, and how does its YAML work?
+
+**Mechanism:** Compose defines services and their images/build contexts, commands, configuration, networks, and volumes in YAML. It creates containers and related resources as one application. See the [annotated example](Interview_Guide.md#docker-compose-running-the-services-together).
+
+**Example:** Nginx, API services, Redis, Celery workers, and Beat can be started from one definition. Separate service images are confirmed; the exact historical grouping of worker/Beat images remains unknown.
+
+**Tradeoff:** Repeatable startup reduces manual container commands, but a Compose file needs maintained configuration and dependency contracts. A single-host deployment remains dependent on that host.
+
+**Failure:** A container can be running before it is ready. Incorrect ports, service URLs, or environment settings cause connectivity failures. Starting duplicate Beat processes can also duplicate periodic work. Startup dependencies alone do not solve runtime outages.
+
+**Evidence:** Merin recalls Compose, per-service images, and EC2 deployment. The YAML in the project guide is a reference example, not historical configuration.
+
+For command revision and YAML fields, see the [Compose commands](Interview_Guide.md#common-docker-compose-commands) and [YAML explanation](Interview_Guide.md#reading-the-yaml-contents).
+
+#### A24. How did containers communicate, and why was VPC mentioned?
+
+**Mechanism:** Compose networking can resolve container service names on the same Docker network. AWS VPC and security groups govern host-level network placement/access. Neither layer alone authenticates an API request.
+
+**Example:** A same-host caller might reach `http://equipment:8000`. Across hosts, private routing/discovery must be configured; a local Compose service name does not automatically resolve on another EC2 instance. Nginx mainly handled frontend request routing.
+
+**Tradeoff:** Private-network trust is simpler, but trusts any caller that can reach the endpoint through allowed paths. Service credentials or mutual TLS can strengthen caller identity, adding management overhead. Tenant/user authorization remains separate.
+
+**Failure:** A compromised allowed container/host may call private APIs. A missing published port does not isolate services from other containers sharing their network. A VPC is not a substitute for request authorization or encryption.
+
+**Evidence:** VPC is Merin's recalled explanation for internal connectivity, and REST calls are tentatively recalled. Exact rules and whether internal requests had no credentials are not verified.
+
+**Spoken answer:** “Docker Compose connected the containers through a Docker network, where services could resolve each other by name. The EC2 deployment also used an AWS VPC as the network boundary. If internal calls relied on private-network trust, that restricted exposure rather than authenticating each caller. The limitation is that a compromised allowed workload can still reach internal endpoints, so service identity and tenant authorization are separate controls.”
 
 ### Communication alternatives at a glance
 

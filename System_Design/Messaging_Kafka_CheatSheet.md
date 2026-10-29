@@ -14,6 +14,7 @@ Kafka examples use classic consumer-group partition assignment and Kafka 4.x con
 - [6. What is an offset, and when should it be committed?](#6-what-is-an-offset-and-when-should-it-be-committed)
 - [7. How do retries and DLQs affect ordering?](#7-how-do-retries-and-dlqs-affect-ordering)
 - [8. What do you monitor and test?](#8-what-do-you-monitor-and-test)
+- [9. Why use Kafka for real-time streaming instead of other queues?](#9-why-use-kafka-for-real-time-streaming-instead-of-other-queues)
 - [References](#references)
 
 ## 1. Queue vs. publish/subscribe vs. retained log?
@@ -121,6 +122,54 @@ Track consumer lag **and oldest unprocessed age**, partition skew, rebalance fre
 **Capacity example:** at 10 MB/s retained for one day, raw data is about 864 GB before replication, indexes, compression, and headroom. This is an estimate, not a sizing guarantee.
 
 Test broker failure, slow DB, poison events, duplicate delivery, crash after DB commit, rebalance during processing, schema evolution, and full disks. Define compatibility rules for event schemas and stable event IDs from the start.
+
+## 9. Why use Kafka for real-time streaming instead of other queues?
+
+**Interview answer:** “Kafka combines high throughput, durable event retention, and independent consumers. I would choose it when several systems need to process the same continuous stream of events and may need to replay that history. For simple background jobs, a traditional queue can be easier to operate.”
+
+Here, streaming means events such as payments, clicks, logs, or sensor readings. Kafka can carry events around a live video service; it usually does not deliver video directly to viewers.
+
+| Aspect | Kafka | Traditional queues, such as RabbitMQ |
+|---|---|---|
+| Main model | Persistent, partitioned event log | Messages delivered through queues to consumers |
+| After processing | Records remain according to retention policy | Messages are typically removed after acknowledgement |
+| Replay | Reset consumer offsets to reread retained records | Usually needs additional storage or a streaming feature |
+| Multiple applications | Separate consumer groups independently read the same stream | Typically separate queues and routing for each application |
+| Scaling | Partitions distribute storage and processing | Depends on queue layout, consumers, and broker configuration |
+| Ordering | Within each partition | Depends on queue configuration and consumer concurrency |
+| Typical strength | High-volume event streams and data pipelines | Task distribution, flexible routing, and per-message handling |
+
+These describe typical usage patterns; some messaging products also provide retained streaming features.
+
+### Main advantages
+
+- **High throughput:** batching, sequential log writes, and partitioning support large event volumes.
+- **Independent consumers:** fraud detection, analytics, and notifications can read the same payment events without competing with each other.
+- **Replay:** reprocess retained events after a bug fix or let a new application process historical data.
+- **Durability and availability:** replication helps tolerate broker failures; guarantees depend on acknowledgement and replication configuration.
+- **Backlog handling:** consumers can fall behind and catch up while events remain within retention. Storage and processing capacity still need planning.
+- **Per-key ordering:** using an order ID as the partition key keeps related events together, subject to partitioning configuration. Application processing must also preserve their sequence.
+
+### Example: order processing
+
+```text
+Order service --> Kafka: OrderCreated
+                         |--> Inventory consumer group
+                         |--> Billing consumer group
+                         |--> Analytics consumer group
+```
+
+Each group independently receives the event. Multiple instances within the inventory group share the work. Analytics can replay yesterday's retained events without changing billing's position. Replaying billing events requires idempotent effects to avoid charging twice.
+
+### When another queue is a better fit
+
+- **RabbitMQ:** useful for sophisticated routing, worker task distribution, priorities, and individual message acknowledgement.
+- **Amazon SQS:** useful for managed asynchronous job processing with low broker-management overhead. Standard and FIFO queues have different ordering and delivery semantics.
+- **Kafka:** useful for retained event history, multiple independent applications, replay, and sustained high-volume streams.
+
+Kafka adds operational complexity: partition planning, retention, consumer lag, rebalancing, and retry workflows. In classic consumer groups, useful consumer parallelism for a topic is limited by its partition count. Kafka does not provide global ordering across partitions or automatically make external effects exactly-once.
+
+**Closing line:** “The decision depends on whether I need a retained, replayable event stream or mainly need workers to execute tasks. Kafka is especially valuable when the same events power several independent systems.”
 
 ## References
 

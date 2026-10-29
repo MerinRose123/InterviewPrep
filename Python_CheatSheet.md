@@ -13,9 +13,11 @@ Interviewers often ask you to write code, then ask what happens when it fails or
   - [Generators](#generator)
   - [Creating an iterator](#what-is-an-iterator-and-how-do-you-create-one)
   - [Coroutines and async code](#coroutines-and-async-code)
+  - [Normal function vs coroutine](#what-is-a-coroutine-and-how-is-it-different-from-a-normal-function)
 - [Futures](#7-futures)
 - [Threads, processes, and asyncio](#8-threads-and-processes)
   - [When to use each concurrency option](#when-should-i-use-asyncio-threads-or-processes)
+  - [Interview: concurrent API aggregator (pseudocode)](#interview-concurrent-api-aggregator-pseudocode)
 - [Heap, stack, and Python memory](#9-heap-stack-and-python-memory)
 - [Garbage collection and memory leaks](#10-garbage-collection-and-memory-leaks)
   - [Reference counting and garbage collection](#how-does-garbage-collection-work-in-cpython)
@@ -304,6 +306,42 @@ def count_down(start):
 
 The class version is useful when you need explicit iterator state or custom behavior. Iterators are usually one-shot; an iterable such as a list can create a fresh iterator for each loop.
 
+### What is a coroutine, and how is it different from a normal function?
+
+A **function** is a reusable block of code that performs a task. Calling a normal function executes its body immediately; the caller waits until it returns or raises an exception.
+
+A **coroutine** can suspend execution and resume later while retaining its local state. In Python, calling a coroutine function defined with `async def` creates a coroutine object without executing its body. Awaiting it or scheduling it as a task lets it run.
+
+| Detail | Normal function | Coroutine function |
+|---|---|---|
+| Definition | `def` (without `yield`) | `async def` (without `yield`) |
+| Calling it | Executes the body and returns a result | Returns a coroutine object |
+| Waiting | Blocking work blocks the calling thread | `await` can suspend execution so other tasks can run |
+| Typical use | Synchronous logic | Concurrent I/O, such as API calls and database queries |
+
+```python
+import asyncio
+
+def greet():
+    return "Hello"
+
+async def greet_async():
+    await asyncio.sleep(0.1)  # simulates a non-blocking wait
+    return "Hello asynchronously"
+
+async def main():
+    print(greet())                 # executes immediately
+    coroutine = greet_async()     # body has not started yet
+    print(await coroutine)        # executes and awaits the result
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+**Interview answer:** “A normal function executes when called. Calling a coroutine function creates an object that must be awaited or scheduled. A coroutine can pause at `await`, allowing other tasks to run while it waits for I/O.”
+
+An `await` does not always suspend: an already-ready awaitable may complete immediately. Coroutines do not automatically make CPU-heavy code faster, and blocking calls inside a coroutine still block the event-loop thread.
+
 ### Coroutines and async code
 
 Calling an `async def` function creates a coroutine object. It does not execute to completion by itself. The event loop schedules it; `await` suspends it until the awaited operation can make progress.
@@ -438,6 +476,97 @@ For either model: bound work, propagate errors, set deadlines, manage shutdown e
 | Processes | You have CPU-heavy work that can be split into independent jobs | Jobs are tiny, share lots of state, or spend more time serializing than working |
 
 Pick the model that fits the workload and libraries already in use. For example, use `asyncio` for many concurrent async HTTP requests, threads for a blocking HTTP client, and processes for CPU-heavy image processing. In every case, limit the number of tasks/jobs in flight.
+
+### Interview: concurrent API aggregator (pseudocode)
+
+**Question:** aggregate user details, recent orders, and payment status from three external services. Start calls concurrently, give each a two-second timeout, tolerate payment failure, fail appropriately if the user service fails, limit downstream concurrency, and handle exceptions.
+
+**Choice:** use `asyncio` with an async HTTP client because these calls spend most of their time waiting for network I/O. This is Python-like pseudocode, not a complete implementation.
+
+**Assumptions:** user data is required. Payment is optional as specified; order-failure behavior was unspecified, so this example also returns partial data if orders fail. The two-second deadline includes waiting for a concurrency slot, so overload cannot cause an unlimited wait.
+
+```text
+// Created at application startup, shared across requests in this worker/event loop.
+http = AsyncHTTPClient(connection_pool_limit=30)
+downstream_slots = Semaphore(30)  // Example capacity; tune for downstream limits.
+
+async function fetchService(service, user_id):
+    try:
+        async with timeout(2 seconds):  // Queue wait + complete HTTP operation.
+            async with downstream_slots:
+                response = await http.get(service.url, user_id=user_id)
+                response.raiseForStatus()
+                data = response.parseAndValidateJSON()
+                return Success(data)
+    catch Cancellation:
+        raise  // Preserve client disconnect / endpoint cancellation.
+    catch Timeout:
+        return Failure("timeout")
+    catch HTTPError, NetworkError, InvalidResponse:
+        return Failure("upstream_failure")
+    catch Exception as error:
+        logInternalError(service.name, error)
+        return Failure("internal_error")  // Do not expose exception details.
+
+async function aggregate(user_id):
+    tasks = [
+        createTask(fetchService(UserService, user_id)),
+        createTask(fetchService(OrderService, user_id)),
+        createTask(fetchService(PaymentService, user_id))
+    ]
+    try:
+        user, orders, payment = await gather(tasks)
+        // All tasks were scheduled before awaiting; failures are result values.
+
+        if user is Failure:
+            if user.reason == "timeout":
+                return 504, { error: "User service timed out" }
+            if user.reason == "internal_error":
+                return 500, { error: "Unable to aggregate user data" }
+            return 502, { error: "User service unavailable" }
+
+        return 200, {
+            user: user.data,
+            orders: orders.data if orders is Success else null,
+            payment: payment.data if payment is Success else null,
+            errors: failureReasonsFor(orders, payment)
+        }
+    finally:
+        cancel any unfinished tasks
+        await all tasks settling, collecting exceptions
+```
+
+The timeout must cancel the underlying async request and release the semaphore slot. Use an async HTTP client throughout; calling a blocking client inside a coroutine would block the event loop. Close the shared HTTP client at application shutdown.
+
+| Situation | Expected behavior |
+|---|---|
+| All three calls succeed | Return combined data; latency is roughly the slowest call, rather than the sum |
+| Payment fails or times out | Return user/orders with `payment: null` and an explicit error; do not imply payment failed financially |
+| User times out | Return 504; other calls also have bounded lifetimes |
+| User has a network/upstream HTTP failure | Return 502 under this example's contract |
+| Orders fail | Return partial data under the stated assumption; confirm the interviewer's desired policy |
+| Concurrency slots are full | Calls wait within their two-second budget, then time out if necessary |
+| Endpoint is cancelled | Cancel and await unfinished tasks; propagate cancellation |
+
+For a known user-service “user not found” response, map to 404 if the API contract defines that meaning. Avoid blindly forwarding every upstream status.
+
+**Concurrency scope:** a semaphore created inside `aggregate()` would only limit that one request. The shared semaphore above limits one worker; multiple workers/replicas multiply the total. Enforce a fleet-wide limit through coordinated admission control or a gateway when required. A concurrency limit bounds in-flight calls, not requests per second. Bound inbound work/queues too under sustained overload.
+
+#### Threading vs. multiprocessing vs. asyncio for this question
+
+| Property | Threading | Multiprocessing | Asyncio |
+|---|---|---|---|
+| Execution | OS threads overlap blocking I/O | Separate processes can run on separate cores | Event loop switches tasks at awaits |
+| Best fit | Blocking HTTP clients and other blocking I/O | CPU-heavy calculations | Many I/O calls with async libraries |
+| Memory / overhead | Shared memory; thread stacks and scheduling | Separate memory; startup and serialization | Shared memory; lightweight tasks |
+| CPU-bound Python on GIL-enabled CPython | Limited parallel bytecode execution | Parallel execution across cores | CPU work blocks the loop unless offloaded |
+| Concurrency control | Shared bounded thread pool plus bounded submission | Bounded process pool plus bounded submission | Shared semaphore and connection pool |
+| Timeout caveat | Timing out a future does not stop a running thread; configure HTTP deadlines | Timing out a future does not stop running process work | Cooperative cancellation; client must support it |
+| Fit for this aggregator | Good if the HTTP library is blocking | Usually unnecessary overhead for network waits | Good if the HTTP library is async |
+
+**What to say aloud:** “I would start all three calls together using asyncio, bound downstream requests with an application-level semaphore, and give each call a two-second deadline. Each call returns success or failure so payment failure does not discard the other results. User data is required, so its failure becomes an endpoint error. Threads are suitable for blocking I/O clients; processes are useful for CPU-heavy work.”
+
+**Follow-up:** this version waits for all three bounded results before checking user failure. For fail-fast behavior, observe the user task first while the other tasks are already running; if it fails, cancel and await the remaining tasks.
 
 ## 9. Heap, stack, and Python memory
 

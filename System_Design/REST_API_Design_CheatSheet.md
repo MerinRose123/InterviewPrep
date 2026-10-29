@@ -10,6 +10,7 @@ HTTP syntax is illustrative. Distinguish standardized HTTP behavior from applica
 - [2. GET vs. POST vs. PUT vs. PATCH vs. DELETE?](#2-get-vs-post-vs-put-vs-patch-vs-delete)
 - [3. Which status code should you return?](#3-which-status-code-should-you-return)
 - [4. How do you implement idempotency and concurrent updates?](#4-how-do-you-implement-idempotency-and-concurrent-updates)
+  - [Interview example: create an order safely on retry](#interview-example-create-an-order-safely-on-retry)
 - [5. Offset vs. cursor pagination?](#5-offset-vs-cursor-pagination)
 - [6. How do caching, versioning, and compatibility work?](#6-how-do-caching-versioning-and-compatibility-work)
 - [7. How do you design an asynchronous API?](#7-how-do-you-design-an-asynchronous-api)
@@ -97,6 +98,71 @@ Content-Type: application/merge-patch+json
 Evaluate the precondition and update atomically in storage. ETag-based conditional writes can prevent lost updates; the ETag must represent the state you protect. A token merely checked in controller code before a separate unguarded write is race-prone.
 
 **Dig deeper:** should two concurrent identical requests wait or return “in progress”? What if the external charge succeeded but saving the response failed?
+
+### Interview example: create an order safely on retry
+
+**Question:** “Order API: input is `user_id` and product details. If the request fails and is retried, it should not create another order. Write pseudocode.”
+
+**Answer:** the client generates one idempotency key for each intended order and reuses it on retries. Persist the key, order, and response in one database transaction, with a unique constraint on `(user_id, operation, key)`.
+
+```text
+// Client: create the key once, outside the retry loop.
+key = randomUUID()
+retryOnTransientFailure:
+    POST /v1/orders
+    Idempotency-Key: key
+    Body: { user_id, product_details }
+
+// Server: authenticatedUser supplies the trusted identity.
+function createOrder(authenticatedUser, key, request):
+    validateKeyAndRequest(key, request)
+    require request.user_id == authenticatedUser.id
+    scope = (authenticatedUser.id, "create_order", key)
+    fingerprint = hash(canonicalize(request))
+
+    BEGIN TRANSACTION  // READ COMMITTED
+    try:
+        claimed = INSERT idempotency_record(scope, fingerprint)
+                  ON UNIQUE CONFLICT DO NOTHING
+                  RETURN whether_inserted
+        // Atomic insert, not a separate existence check.
+        // A competing insert waits for the first transaction to finish.
+        // If it rolls back, this insert can succeed instead.
+
+        if not claimed:
+            previous = SELECT idempotency_record WHERE scope = scope
+            // Fresh statement sees the competing transaction's commit.
+            ROLLBACK
+            if previous.fingerprint != fingerprint:
+                return 409, "Key already used for a different request"
+            return previous.saved_status, previous.saved_response
+
+        order = INSERT order(authenticatedUser.id, request.product_details)
+        response = { order_id: order.id, status: "created" }
+        UPDATE idempotency_record WHERE scope = scope
+            SET saved_status = 201, saved_response = response
+        COMMIT
+        return 201, response
+    catch database_error:
+        ROLLBACK if transaction is still active
+        return retryable_error  // Client retries with the SAME key.
+```
+
+The insert syntax is pseudocode for database-supported conflict handling, such as PostgreSQL `ON CONFLICT DO NOTHING`; it must not abort the transaction on a duplicate. The replay read uses the primary database. This example assumes records remain available throughout the retry window, with no concurrent expiry deletion.
+
+| Failure / retry | Result |
+|---|---|
+| Order commits, but the response is lost | Retry returns the saved response and the same order ID |
+| Failure before commit | Both order and key reservation roll back; retry can create the order |
+| Commit outcome is unknown after a connection failure | Retry with the same key resolves whether the order committed |
+| Two requests arrive with the same key | Unique constraint serializes the claim; only one order is created |
+| Same key, different product details | Return a conflict rather than silently replaying a different order |
+
+**What to say aloud:** “The key identifies the intended operation. The unique constraint handles concurrent retries, and the transaction keeps order creation and the saved result atomic.”
+
+Do not derive the key only from `user_id + product_details`: a user may intentionally buy the same products twice. Each new intended order needs a new key. After key expiry, this deduplication guarantee no longer applies; document the supported retry window.
+
+**Scope:** this transaction covers local database writes. External payment calls or messages need their own idempotency/recovery design, such as a provider idempotency key and a transactional outbox. A database rollback cannot undo an external charge.
 
 ## 5. Offset vs. cursor pagination?
 

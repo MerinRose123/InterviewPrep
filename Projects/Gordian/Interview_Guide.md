@@ -236,6 +236,10 @@ A separate reporting queue prevents WeasyPrint rendering from competing with sim
 
 References: [Pandas CSV reading](https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html), [large-data processing](https://pandas.pydata.org/docs/user_guide/scale.html), and the TF-IDF references above. The chunk count and cache-key names here are proposed examples.
 
+### Broker choice: Redis versus RabbitMQ
+
+Redis dispatched Celery work in the published implementation pattern. The in-process LRUCache handled reusable resources separately. The [broker comparison and interview answers](Interview_Questions_and_Answers.md#redis-versus-rabbitmq) explain why Redis fits small task messages, when RabbitMQ is worth evaluating, and how long-task visibility/acknowledgement settings affect retries. The original selection rationale is not documented.
+
 ## 6. Single-tenant backend, persistence, and deployment
 
 Merin confirms this application served one client as a single-tenant system. Multiple users, uploads, and reports do not imply multiple tenants. Flask, PostgreSQL, Redis, Celery, Docker, Nginx, and EC2 are listed in the project materials; the exact service boundaries and deployment automation remain unspecified.

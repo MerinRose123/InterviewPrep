@@ -252,3 +252,7 @@ This is a design for immutable completed comparison results. If scores change wh
 **Would more indexes always help?** No. Measure read benefits against write cost and storage. A projection reduces transferred fields but does not guarantee an index-covered query.
 
 **What should you recover from the real project?** One actual document, one collection name, one filter, one index, the PyMongo/ODM library used, and one measured query issue. These turn a design answer into a personal implementation story.
+
+## 9. Why MongoDB rather than Amazon SQS?
+
+These solve different requirements: MongoDB stores queryable analysis records; SQS delivers messages to processing workers. In a possible architecture, file storage holds the upload, SQS carries its file/job ID, and a worker writes analysis results to MongoDB. SQS could replace the Redis broker role after evaluating Celery transport requirements; it does not replace MongoDB queries and aggregations. See the [comparison and interview answer](Interview_Questions_and_Answers.md#mongodb-versus-amazon-sqs). This is an architectural comparison, not a claim that Gordian used SQS.
