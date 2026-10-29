@@ -1,7 +1,5 @@
 # Gordian — project overview
 
-# Gordian: piracy detection, architecture, and contributions
-
 **InApp | Merin Rose Tom**
 
 [Interview questions and answers](Interview_Questions_and_Answers.md) · [MongoDB schema, queries, and performance](MongoDB_Interview_Deep_Dive.md) · [All projects](../README.md)
