@@ -1,6 +1,4 @@
-# peoplesoft — project overview
-
-# PeopleSoft Cloud Manager: project, orchestration, and interview guide
+# PeopleSoft Cloud Manager — project overview
 
 **Merin Rose Tom | Oracle, November 2021–October 2026 | Research reviewed 28 October 2026**
 
