@@ -2,7 +2,7 @@
 
 **InApp | Merin Rose Tom**
 
-[Interview questions and answers](Interview_Questions_and_Answers.md) · [MongoDB schema, queries, and performance](MongoDB_Interview_Deep_Dive.md) · [All projects](../README.md)
+[Interview questions and answers](05_Interview_QA.md) · [MongoDB schema, queries, and performance](MongoDB_Interview_Deep_Dive.md) · [All projects](../README.md)
 
 ## 1. Project overview
 
@@ -238,7 +238,7 @@ References: [Pandas CSV reading](https://pandas.pydata.org/docs/reference/api/pa
 
 ### Broker choice: Redis versus RabbitMQ
 
-Redis dispatched Celery work in the published implementation pattern. The in-process LRUCache handled reusable resources separately. The [broker comparison and interview answers](Interview_Questions_and_Answers.md#redis-versus-rabbitmq) explain why Redis fits small task messages, when RabbitMQ is worth evaluating, and how long-task visibility/acknowledgement settings affect retries. The original selection rationale is not documented.
+Redis dispatched Celery work in the published implementation pattern. The in-process LRUCache handled reusable resources separately. The [broker comparison and interview answers](05_Interview_QA.md#redis-versus-rabbitmq) explain why Redis fits small task messages, when RabbitMQ is worth evaluating, and how long-task visibility/acknowledgement settings affect retries. The original selection rationale is not documented.
 
 ## 6. Single-tenant backend, persistence, and deployment
 
