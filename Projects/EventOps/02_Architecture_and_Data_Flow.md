@@ -579,7 +579,10 @@ For a reference secure download design, the backend checks user/tenant access be
 
 ---
 
-# EventOps — microservices, scale, and distributed-systems diagrams
+
+---
+
+## Distributed architecture diagrams
 
 [Project guide](Interview_Guide.md) · [Challenge scenarios](Project_Challenge_Scenarios.md) · [Interview Q&A](Interview_Questions_and_Answers.md)
 
