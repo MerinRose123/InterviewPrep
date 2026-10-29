@@ -1,6 +1,6 @@
 # peoplesoft — scaling and failure scenarios
 
-The [engineering challenge guide](Project_Challenge_Scenarios.md) contains detailed failure and recovery discussions. Use the [architecture diagrams](02_Architecture_and_Data_Flow.md) to walk through component boundaries, retries, consistency, and capacity.
+The [engineering challenge guide](03_Engineering_Challenges.md) contains detailed failure and recovery discussions. Use the [architecture diagrams](02_Architecture_and_Data_Flow.md) to walk through component boundaries, retries, consistency, and capacity.
 
 ## Whiteboard checklist
 
