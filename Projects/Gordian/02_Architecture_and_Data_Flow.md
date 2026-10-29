@@ -9,9 +9,9 @@ Gordian was a **single-tenant Flask application**, not a collection of independe
 ```mermaid
 flowchart TB
   USER[Analyst] --> UI[Angular UI]
-  UI --> NX[Nginx]
+  UI --> API
   subgraph EC2[AWS EC2 / Docker-packaged application]
-    NX --> API[Flask backend]
+    API[Flask backend]
     API --> ANALYSIS[Python analysis: Pandas / NumPy / TF-IDF]
     API -->|Submit report task| REDIS[(Redis broker)]
     REDIS --> W1[Celery worker process A]
