@@ -2,6 +2,31 @@
 
 Practical senior-engineer revision: **21 topic guides plus this index**. Each sheet combines mechanisms, examples, tradeoffs, failure scenarios, verification, and deeper follow-up questions. Diagrams/configuration are explanatory; placeholders and example numbers must be adapted and measured before use.
 
+## Priority track: microservices, scaling, and distributed systems
+
+Use this track before the broader topic map when preparing for senior backend and platform interviews. Each topic has a distinct purpose; refer to the linked guide instead of memorizing repeated definitions.
+
+| Step | Primary guide | What you should be able to defend | Project application |
+|---|---|---|---|
+| 1 | [Microservices](Microservices_CheatSheet.md) | Boundaries, shared DB versus database-per-service, REST versus events, extraction | [EventOps architecture](../Projects/EventOps/02_Architecture_and_Data_Flow.md) |
+| 2 | [Distributed systems](Distributed_Systems_CheatSheet.md) | Consistency, coordination, fencing, partial failure, Saga | [Cloud Manager architecture](../Projects/peoplesoft/02_Architecture_and_Data_Flow.md) |
+| 3 | [Messaging and Kafka](Messaging_Kafka_CheatSheet.md) | Queue semantics, ordering, duplicates, consumer groups, retries | [EventOps failure scenarios](../Projects/EventOps/04_Scaling_and_Failure_Scenarios.md) |
+| 4 | [REST/API design](REST_API_Design_CheatSheet.md) | Idempotency, concurrency, pagination, async job APIs | [EventOps challenges](../Projects/EventOps/03_Engineering_Challenges.md) |
+| 5 | [Caching and performance](Caching_Performance_CheatSheet.md) | Cache scope, invalidation, stampedes, bottleneck diagnosis | [Gordian architecture](../Projects/Gordian/02_Architecture_and_Data_Flow.md) |
+| 6 | [Large-data background processing](Large_Data_Background_Processing_CheatSheet.md) | Celery, memory limits, task retries, worker scale | [Gordian failures](../Projects/Gordian/04_Scaling_and_Failure_Scenarios.md) |
+| 7 | [Workflow orchestration](Workflow_Orchestration_CheatSheet.md) | Durable operations, timeouts, reconciliation, compensation | [Cloud Manager failures](../Projects/peoplesoft/04_Scaling_and_Failure_Scenarios.md) |
+| 8 | [Observability](Observability_CheatSheet.md) | Latency, throughput, error rates, queue age, traces, SLOs | All three projects |
+
+### Five questions to answer for every architecture diagram
+
+1. Where is the authoritative state and who owns writes?
+2. Which calls are synchronous, asynchronous, or eventually consistent?
+3. What happens if the response is lost after the operation succeeds?
+4. Which component saturates first when load increases by 10×?
+5. What metric, trace, or log would prove the diagnosis?
+
+The general guides explain mechanisms; the project guides explain how to discuss them in the context of actual engineering work.
+
 ## Topic map
 
 | Cheatsheet | What to study |
