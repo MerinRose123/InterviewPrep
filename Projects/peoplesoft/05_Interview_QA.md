@@ -1,6 +1,6 @@
 # PeopleSoft: interview questions and answers
 
-**50 practice questions | Cloud Manager, architecture, and distributed systems**
+**Start with 12 applied senior-engineer interview drills; 50 foundational and reference questions follow.**
 
 Use this file for spoken practice. Start with a direct answer, then add a concrete mechanism, a failure case, and your actual contribution. Personal implementation details and measurements must match your experience; proposed designs are not claims about delivered product internals.
 
@@ -172,7 +172,7 @@ The questions below simulate an interviewer challenging your reasoning, implemen
 
 The following questions are retained for breadth, definitions, and targeted follow-up study. For PeopleSoft Cloud Manager interviews, prioritize the scenario-based questions above; don't rehearse this section linearly.
 
-## Practice order
+## Reference-bank practice order (after the senior drills)
 
 1. Architecture overview: questions 21–28.
 2. Messaging and background work: questions 29–34.
