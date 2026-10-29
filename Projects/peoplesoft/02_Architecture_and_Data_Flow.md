@@ -1,6 +1,6 @@
 # peoplesoft — Architecture and data flow
 
-[Cloud Manager guide](Cloud_Manager_Interview_Guide.md) · [PeopleSoft runtime architecture](PeopleSoft_Architecture_and_Distributed_Systems.md) · [Challenge scenarios](Project_Challenge_Scenarios.md)
+[Cloud Manager guide](Cloud_Manager_Interview_Guide.md) · [PeopleSoft runtime architecture](PeopleSoft_Architecture_and_Distributed_Systems.md) · [Challenge scenarios](03_Engineering_Challenges.md)
 
 **Key distinction:** Cloud Manager is an infrastructure-orchestration product. The managed PeopleSoft runtime contains web, application, batch, database, and search components. Do not present Cloud Manager itself as a conventional independently deployed microservices platform.
 
