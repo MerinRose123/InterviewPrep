@@ -1,6 +1,6 @@
 # EventOps — scaling and failure scenarios
 
-See [architecture](02_Architecture_and_Data_Flow.md), [challenges](03_Engineering_Challenges.md), and [Q&A](Interview_Questions_and_Answers.md).
+See [architecture](02_Architecture_and_Data_Flow.md), [challenges](03_Engineering_Challenges.md), and [Q&A](05_Interview_QA.md).
 
 ## Distributed system scenarios
 
