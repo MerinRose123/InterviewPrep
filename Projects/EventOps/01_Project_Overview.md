@@ -1,7 +1,5 @@
 # EventOps — project overview, stack and contributions
 
-# EventOps: project architecture, implementation, and contributions
-
 **InApp | September 2019-November 2021 | Merin Rose Tom**
 
 [Interview questions and answers](Interview_Questions_and_Answers.md)
