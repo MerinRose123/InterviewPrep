@@ -18,7 +18,7 @@ The resume and LinkedIn profile place the relevant work under the InApp Software
 
 ### Interview introduction
 
-“At InApp, I worked on Gordian, a single-tenant document/data copying-detection and reporting system. The client supplied a large reference CSV with equipment-related data, and we compared uploaded competitor documents against it to assess copying for client review and possible legal follow-up. I implemented data cleaning, data analysis, and document similarity scoring using Python, Pandas, and NumPy to identify possible plagiarism, and analyzed and visualized more than 50,000 data points using Matplotlib and MongoDB. I also engineered an asynchronous Celery pipeline for PDF reports over 16 GB+ datasets under memory constraints. A shared LRU cache helped eliminate repeated data loads that took around 30 minutes. The backend used Flask, PostgreSQL, Redis, Docker, and Nginx on AWS EC2.”
+“At InApp, I worked on Gordian, a single-tenant document/data copying-detection and reporting system. The client supplied a large reference CSV with equipment-related data, and we compared uploaded competitor documents against it to assess copying for client review and possible legal follow-up. I implemented data cleaning, data analysis, and document similarity scoring using Python, Pandas, and NumPy to identify possible plagiarism, and analyzed and visualized more than 50,000 data points using Matplotlib and MongoDB. I also engineered an asynchronous Celery pipeline for PDF reports over 16 GB+ datasets under memory constraints. A shared LRU cache helped eliminate repeated data loads that took around 30 minutes. The backend used Flask, MongoDB, Redis, Docker, and Nginx on AWS EC2.”
 
 Do not describe document fingerprinting, watermark extraction, web crawling, OCR, or a particular classification algorithm as implemented features: the supplied sources do not establish those mechanisms.
 
@@ -31,8 +31,7 @@ Do not describe document fingerprinting, watermark extraction, web crawling, OCR
 | Routing | Nginx | Route traffic and integrate backend services |
 | Runtime packaging | Docker | Package services and standardize development environments |
 | Hosting | AWS EC2 | Backend hosting; instance count and topology unknown |
-| Application persistence | PostgreSQL | Backend persistence; exact schema unverified |
-| Analysis storage | MongoDB | Data store associated with piracy analytics and visualization |
+| Database | MongoDB | Application and analysis persistence; PostgreSQL was not used |
 | Data processing | Pandas, NumPy | Analyze data and implement piracy-detection processing |
 | Detection | TF-IDF with cosine similarity | Fitted text representation and document similarity scoring to identify possible plagiarism |
 | Visualization | Matplotlib | Visualize piracy-related data for product decisions |
@@ -45,11 +44,11 @@ Redis and the shared LRU cache are separate documented concepts. Do not assume R
 
 ## 6. Single-tenant backend, persistence, and deployment
 
-Merin confirms this application served one client as a single-tenant system. Multiple users, uploads, and reports do not imply multiple tenants. Flask, PostgreSQL, Redis, Celery, Docker, Nginx, and EC2 are listed in the project materials; the exact service boundaries and deployment automation remain unspecified.
+Merin confirms this application served one client as a single-tenant system. Multiple users, uploads, and reports do not imply multiple tenants. Flask, MongoDB, Redis, Celery, Docker, Nginx, and EC2 are listed in the project materials; the exact service boundaries and deployment automation remain unspecified.
 
 Authorization still needs to protect reference files, competitor uploads, and report access. A useful design discussion covers permitted users, file validation, dataset versions, and comparison-job ownership without inventing a tenant-routing layer.
 
-PostgreSQL and MongoDB were both present. A possible division is application metadata versus analysis records, but actual ownership and consistency requirements need confirmation.
+MongoDB was the sole database used by Gordian. There was no PostgreSQL-backed application store.
 
 ## 7. Contributions and evidence
 
