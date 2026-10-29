@@ -62,13 +62,13 @@ Redis served as the broker in the documented Celery implementation pattern. The 
 
 **Follow-ups:** What happens when a task runs longer than the broker's visibility timeout? How do you handle retries? How do you avoid duplicate reports? Why is Redis the broker rather than the large dataset cache?
 
-## 6. Challenge: MongoDB versus PostgreSQL versus a queue
+## 6. Challenge: MongoDB persistence versus task queues
 
-**Project components:** PostgreSQL-backed application data and MongoDB-associated analysis/visualization data.
+**Project components:** MongoDB was the project's database; Celery and Redis handled background task execution and messaging. PostgreSQL was not used.
 
 **Interviewer:** “Why use MongoDB, and why not SQS?”
 
-MongoDB is a document database for storing and querying analysis records. PostgreSQL is relational storage suited to transactional entities and constraints. Amazon SQS is a message-delivery service, not a substitute for querying analysis results. Compare technologies by the problem they solve rather than treating them as interchangeable.
+MongoDB persisted application and analysis data. Amazon SQS is a message-delivery service, not a substitute for querying persisted analysis results. Compare technologies by the problem they solve rather than treating them as interchangeable.
 
 **Trade-offs:** Flexible documents help with evolving analysis output, but indexes, document growth, and aggregation cost still matter. Relational modeling may be preferable for strongly constrained transactional workflows. A queue decouples producers and workers but does not replace persistent analytical storage.
 
