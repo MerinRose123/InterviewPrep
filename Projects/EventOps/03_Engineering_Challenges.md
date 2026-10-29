@@ -122,7 +122,7 @@ There is no EventOps benchmark proving a renderer fastest or most memory efficie
 
 ---
 
-# EventOps — project-specific architecture, challenges, and scenarios
+## Project-specific engineering challenge scenarios
 
 [Project architecture](Interview_Guide.md) · [Detailed interview Q&A](Interview_Questions_and_Answers.md)
 
