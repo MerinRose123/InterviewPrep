@@ -2,7 +2,7 @@
 
 **PeopleSoft Cloud Manager context | Research reviewed 28 October 2026**
 
-[Cloud Manager guide](Cloud_Manager_Interview_Guide.md) · [PeopleSoft architecture](PeopleSoft_Architecture_and_Distributed_Systems.md) · [Project interview Q&A](Interview_Questions_and_Answers.md)
+[Cloud Manager guide](Cloud_Manager_Interview_Guide.md) · [PeopleSoft architecture](PeopleSoft_Architecture_and_Distributed_Systems.md) · [Project interview Q&A](05_Interview_QA.md)
 
 [Technology comparisons](Technology_Comparisons.md) explains the boundaries between IaC, configuration management, machine images, containers, and product lifecycle orchestration.
 

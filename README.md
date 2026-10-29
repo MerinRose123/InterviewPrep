@@ -15,7 +15,7 @@ A personal interview-preparation repository covering coding problems, language f
 | [Spring Boot cheatsheet](SpringBoot_CheatSheet.md) | Dependency injection, proxies, transactions, JPA, security, reliability, testing, and production diagnosis |
 | [Database cheatsheet](Database_CheatSheet.md) | SQL, schema design, indexes, transactions/isolation, replication, read replicas, partitioning/sharding, NoSQL, and recovery |
 | [System design study index](System_Design/README.md) | 21 focused topic guides, suggested study order, resume deep dives, and practical design exercises |
-| [Project interview guides](Projects/README.md) | EventOps and Gordian narratives, architecture diagrams, technology stacks, personal contributions, and interview Q&A |
+| [Project interview guides](Projects/README.md) | PeopleSoft Cloud Manager, EventOps, and Gordian; architecture, distributed-system failures, scaling, personal contributions, and interview Q&A |
 
 ## System design coverage
 
@@ -26,6 +26,13 @@ A personal interview-preparation repository covering coding problems, language f
 - **Project-oriented design:** search/reindexing, durable cloud workflows, large-data/Celery pipelines, RAG/AI agents, and design patterns.
 
 See the [full topic map](System_Design/README.md#topic-map) for all files.
+
+## Fast track for senior backend interviews
+
+1. [Microservices, scaling, and distributed systems study track](System_Design/README.md#priority-track-microservices-scaling-and-distributed-systems).
+2. [EventOps architecture and migration](Projects/EventOps/02_Architecture_and_Data_Flow.md) — service boundaries, shared data, Celery, and tenant isolation.
+3. [Cloud Manager distributed orchestration](Projects/peoplesoft/02_Architecture_and_Data_Flow.md) — lifecycle state, partial failures, and recovery.
+4. [Gordian worker and data pipeline architecture](Projects/Gordian/02_Architecture_and_Data_Flow.md) — memory, cache scope, and background scaling.
 
 ## How to use the material
 

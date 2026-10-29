@@ -4,7 +4,7 @@
 
 Companion: [Cloud Manager project and orchestration guide](Cloud_Manager_Interview_Guide.md).
 
-[Dedicated interview questions and answers](Interview_Questions_and_Answers.md) — 50 questions across both guides.
+[Dedicated interview questions and answers](05_Interview_QA.md) — 50 questions across both guides.
 
 ## Contents
 

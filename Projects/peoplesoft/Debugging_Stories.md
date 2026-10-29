@@ -1,6 +1,6 @@
 # PeopleSoft Cloud Manager: debugging and release stories
 
-[Cloud Manager guide](Cloud_Manager_Interview_Guide.md) · [Technology comparisons](Technology_Comparisons.md) · [Interview Q&A](Interview_Questions_and_Answers.md)
+[Cloud Manager guide](Cloud_Manager_Interview_Guide.md) · [Technology comparisons](Technology_Comparisons.md) · [Interview Q&A](05_Interview_QA.md)
 
 ## 1. Cloud Manager 16: OCI CLI dependency installation failure
 

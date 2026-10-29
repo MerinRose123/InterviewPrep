@@ -4,7 +4,7 @@
 
 Companion: [PeopleSoft architecture and distributed mechanisms](PeopleSoft_Architecture_and_Distributed_Systems.md).
 
-[Dedicated interview questions and answers](Interview_Questions_and_Answers.md) — 50 questions across both guides.
+[Dedicated interview questions and answers](05_Interview_QA.md) — 50 questions across both guides.
 
 [Technology comparisons for general backend interviews](Technology_Comparisons.md) · [Real debugging and release stories](Debugging_Stories.md)
 
