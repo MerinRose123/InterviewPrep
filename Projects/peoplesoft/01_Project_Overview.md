@@ -1,5 +1,7 @@
 # PeopleSoft Cloud Manager — project overview
 
+> **Technology boundary:** PeopleSoft Cloud Manager did **not** use Celery or Kafka. PeopleSoft application/runtime work uses its own facilities, including Tuxedo service dispatch, Integration Broker, and Process Scheduler. Cloud Manager lifecycle operations involve OCI services, REST/IB callbacks, Terraform/OpenTofu, and platform automation as described below. Celery belongs to the separate EventOps/Gordian Python projects; Kafka is discussed only as a general system-design comparison.
+
 ## 2. Product and vocabulary
 
 PeopleSoft Cloud Manager automates provisioning and lifecycle management of PeopleSoft environments on OCI. Think of an environment as a coordinated set of infrastructure, software installations, domains, configuration, database services, and operational metadata. An administrator describes the desired environment; Cloud Manager coordinates the steps needed to produce and maintain it. Oracle delivers the application through OCI Marketplace. [Oracle product overview](https://docs.oracle.com/en/applications/peoplesoft/cloud-manager/22/peoplesoft-cloud-manager-for-oracle-cloud-infrastructure/understanding-peoplesoft-cloud-manager-oracle-cloud-infrastructure.html)
