@@ -124,7 +124,7 @@ There is no EventOps benchmark proving a renderer fastest or most memory efficie
 
 ## Project-specific engineering challenge scenarios
 
-[Project architecture](Interview_Guide.md) · [Detailed interview Q&A](Interview_Questions_and_Answers.md)
+[Project architecture](Interview_Guide.md) · [Detailed interview Q&A](05_Interview_QA.md)
 
 ## Interview opening (90 seconds)
 
