@@ -284,3 +284,118 @@ Sources: [AWS SQS overview](https://docs.aws.amazon.com/AWSSimpleQueueService/la
 - Keep 50,000+ analysis points, 16 GB+ reporting inputs, and 30-minute repeated loads as distinct metrics.
 
 Sources and evidence boundaries are recorded in the [companion guide](Interview_Guide.md#8-sources-and-remaining-confirmations).
+
+
+---
+
+## Senior-engineer mock interview: Gordian (deep-dive drills)
+
+These drills are meant to be spoken aloud. The **project fact** is what you can describe as implemented. The **scenario** is an interviewer-imposed change or failure; its solution is a design answer, not a claim about production Gordian.
+
+### Drill G1 — Your 16 GB report is taking 30 minutes just to load data. Walk me through the fix.
+
+**Interviewer:** "Start from the user clicking Generate. Where is the expensive work, and what did you change?"
+
+**Project fact:** Gordian generated PDF reports asynchronously with Celery, processing datasets larger than 16 GB. Repeated loading of reference data could cost roughly 30 minutes. A custom Celery base-task implementation reused loaded data with an in-memory LRU cache.
+
+**Strong answer:** "I would first separate request latency from worker execution. The Flask endpoint should enqueue a report job rather than parse the entire reference dataset in the HTTP request. The worker needs the reference dataset, which was expensive to load repeatedly. We reused previously loaded data through an LRU cache attached to the task/worker execution path, so later tasks handled by the same worker process could avoid that load. The important boundary is process memory: two Celery worker processes do not share one Python cache. I would measure load time, cache hit rate, peak RSS, total report latency, and worker concurrency rather than claiming caching alone fixes memory pressure."
+
+**Interviewer pushes:** "Why not just put 16 GB in Redis?"  
+**Answer:** "Redis is a separate in-memory service and would introduce another large memory allocation, serialization, network transfer, and eviction problem. Redis was useful for Celery task messaging; that does not mean it was our dataset cache. For datasets that large, I would also compare streaming/chunking and a versioned on-disk representation."
+
+**Interviewer pushes:** "What if you start eight worker processes?"  
+**Answer:** "Each process can load its own copy, so worst-case memory grows roughly with concurrent loaded copies, not just with task count. I'd cap concurrency based on measured resident memory and memory headroom. More workers can make throughput worse by multiplying cold loads or causing swapping/OOM."
+
+**Whiteboard:** Flask request → task identifier → Redis broker → Celery worker → versioned reference-data load/cache → analysis/report rendering → report artifact.
+
+**What to defend:** Cache scope, eviction behavior, stale data, worker restarts, memory budget, and actual before/after load measurements. Don't call this a distributed shared cache.
+
+### Drill G2 — Two reports use different versions of the reference CSV. How do you prevent incorrect reuse?
+
+**Interviewer:** "Your LRU cache already has the reference data. A new CSV is uploaded while reports are running. What happens?"
+
+**Design answer:** "The cache key must represent immutable dataset identity, not a generic name such as 'latest'. I'd assign each uploaded reference dataset a version or content hash. The report job records the version it was created against. The worker loads and caches by that version; new jobs can use the new version while in-flight jobs continue with the old one. Old cache entries can be evicted after they are no longer needed. The result should record its source dataset version for reproducibility."
+
+**Interviewer pushes:** "What if a report job is retried on another worker?"  
+**Answer:** "That worker may have a cold cache. It should still retrieve the same immutable dataset version and produce a logically equivalent result. A cache hit is an optimization, not a correctness dependency."
+
+**Design sketch:**
+\`\`\`python
+# Illustrative design, not historical Gordian code.
+cache_key = (dataset_version, parser_version)
+data = local_lru.get(cache_key)
+if data is None:
+    data = load_reference_dataset(dataset_version)
+    local_lru.put(cache_key, data)
+\`\`\`
+
+**What to defend:** Immutable input references, reproducible reports, cache invalidation, and idempotent retries.
+
+### Drill G3 — Celery says the task ran twice. Can the customer receive duplicate reports?
+
+**Interviewer:** "The worker generated the PDF, then crashed before acknowledging the message."
+
+**Design answer:** "Task queues may redeliver work; exactly-once execution should not be assumed. I'd give each requested report a durable job ID and use an idempotency key derived from the request or an explicit client key. A worker claims the job, writes output to a temporary/versioned artifact, and atomically publishes one final report reference when complete. A retried task checks whether the final result already exists before doing unnecessary work. A state transition should be conditional on the expected prior state so two workers cannot both publish conflicting final results."
+
+**Interviewer pushes:** "Does Redis or Celery guarantee exactly once?"  
+**Answer:** "No. Queue acknowledgement and application side effects are separate boundaries. I would design for at-least-once execution and idempotent publication, then test crash-after-upload and retry-after-timeout cases."
+
+**Design sketch:** Job states \`PENDING → RUNNING → COMPLETED\` or \`FAILED\`; each transition has a stable job ID, attempt number, and completion artifact reference. The exact job-state storage is a design decision; Gordian's database was MongoDB, not PostgreSQL.
+
+### Drill G4 — The report service crashes on a 16 GB dataset. What is your debugging plan?
+
+**Interviewer:** "CPU is high, memory is climbing, and reports are failing."
+
+**Strong answer:** "I would establish whether memory is rising during CSV parsing, Pandas transforms, document similarity calculations, chart generation, or PDF rendering. I'd correlate per-process RSS with worker concurrency and cache occupancy. Loading a 16 GB CSV can consume far more than 16 GB in memory after object conversion and intermediate DataFrames. I'd test smaller representative input, profile allocations, inspect data types and unnecessary copies, and consider \`read_csv(chunksize=...)\`, selected columns, and streaming aggregation where algorithmically valid."
+
+**Interviewer pushes:** "Would you increase worker count?"  
+**Answer:** "Not before finding the bottleneck. If memory-bound, more workers can increase OOMs. If CPU-bound, I would evaluate parallelism within a memory budget. If I/O-bound, I would examine storage and repeated reads."
+
+**Follow-up test:** Run a controlled 1-, 2-, and 4-worker benchmark with the same dataset; report throughput, peak RSS, cold/warm latency, and failure rate. These are proposed tests, not historical results.
+
+### Drill G5 — Explain the piracy-detection algorithm without hiding behind 'machine learning'.
+
+**Interviewer:** "A competitor document shares common industry terms with the reference. Why isn't that automatically piracy?"
+
+**Project fact:** Gordian's analysis involved Python, Pandas/NumPy and text similarity using TF-IDF and cosine similarity.
+
+**Strong answer:** "TF-IDF converts documents into weighted term vectors, emphasizing terms that are informative within the corpus. Cosine similarity measures how closely the weighted vectors align; it does not prove copying or intent. Shared domain vocabulary, boilerplate, short documents, and preprocessing choices can create false positives. I'd explain tokenization, normalization, stop-word choices, the corpus used to fit IDF, and how a threshold is calibrated against reviewed examples."
+
+**Interviewer pushes:** "What if two documents have the same meaning but different wording?"  
+**Answer:** "A sparse lexical TF-IDF representation may miss paraphrases. Semantic embeddings are one possible alternative, but they change explainability, evaluation, and cost; I would not claim we deployed embeddings."
+
+**Interviewer pushes:** "What metric would you show the client?"  
+**Answer:** "Precision and recall against reviewed examples, a confusion matrix at a chosen threshold, and examples of false positives/negatives. A high cosine score alone is not a validated accuracy metric."
+
+### Drill G6 — Why MongoDB, and what indexes would you actually add?
+
+**Interviewer:** "A user opens a report and filters matches by dataset, document, and descending similarity score. Show me the query."
+
+**Project fact:** MongoDB was Gordian's only database. The following document structure is a design exercise, not a recovered production schema.
+
+\`\`\`javascript
+db.matches.find(
+  { dataset_version: "v12", document_id: "doc-42" },
+  { document_id: 1, score: 1, matched_reference: 1 }
+).sort({ score: -1 }).limit(50)
+\`\`\`
+
+**Design answer:** "For that access pattern I would test a compound index on \`{dataset_version: 1, document_id: 1, score: -1}\`. Equality filters come first and the sort follows. I'd use \`explain('executionStats')\` to inspect keys/documents examined and whether a blocking sort remains. The index should be justified by measured query frequency and write overhead."
+
+**Interviewer pushes:** "Why not offset pagination at page 10,000?"  
+**Answer:** "Large skips can be costly. I would use cursor/keyset pagination with a stable tie-breaker such as \`_id\` and an index that supports the ordering."
+
+### Drill G7 — How do you handle a partial report when the worker fails?
+
+**Interviewer:** "The PDF is 90% generated and the instance restarts."
+
+**Design answer:** "Treat the output as incomplete until a final publish step succeeds. Write to a temporary path/object, verify completion, then publish the final artifact and mark the job complete. On retry, detect an existing complete artifact or restart from a checkpoint if the report pipeline supports it. Clean up abandoned temporary artifacts. I'd avoid exposing partial PDFs under the final download URL."
+
+**Interviewer pushes:** "How do you know the report used the correct reference version?"  
+**Answer:** "Persist the immutable dataset version with the job and include it in the report metadata and logs. The output should be traceable to the inputs."
+
+### Drill G8 — You have ten minutes with the hiring manager. Which Gordian story do you choose?
+
+**Answer structure (90 seconds):** "The user-facing problem was expensive report generation over large reference datasets. My contribution was the asynchronous Celery reporting pipeline and a worker-local LRU reuse mechanism that avoided repeated roughly 30-minute data loads. The non-obvious trade-off is that a Python cache is process-local, so adding workers can multiply memory consumption. If redesigning today, I'd benchmark cold/warm paths, enforce dataset-version keys, and make retries and output publication idempotent."
+
+**Follow-up questions to rehearse:** "What was the cache capacity?" "What evicted an entry?" "What happened after a worker restart?" "How did you measure improvement?" "Why not use a streaming pipeline?" Give your actual recalled details; don't substitute hypothetical values.
