@@ -22,7 +22,7 @@ The resume and LinkedIn profile place the relevant work under the InApp Software
 
 ### Interview introduction
 
-“At InApp, I worked on Gordian, a single-tenant document/data copying-detection and reporting system. The client supplied a large reference CSV with equipment-related data, and we compared uploaded competitor documents against it to assess copying for client review and possible legal follow-up. I implemented data cleaning, data analysis, and document similarity scoring using Python, Pandas, and NumPy to identify possible plagiarism, and analyzed and visualized more than 50,000 data points using Matplotlib and MongoDB. I also engineered an asynchronous Celery pipeline for PDF reports over 16 GB+ datasets under memory constraints. A shared LRU cache helped eliminate repeated data loads that took around 30 minutes. The backend used Flask, PostgreSQL, Redis, Docker, and Nginx on AWS EC2.”
+“At InApp, I worked on Gordian, a single-tenant document/data copying-detection and reporting system. The client supplied a large reference CSV with equipment-related data, and we compared uploaded competitor documents against it to assess copying for client review and possible legal follow-up. I implemented data cleaning, data analysis, and document similarity scoring using Python, Pandas, and NumPy to identify possible plagiarism, and analyzed and visualized more than 50,000 data points using Matplotlib and MongoDB. I also engineered an asynchronous Celery pipeline for PDF reports over 16 GB+ datasets under memory constraints. A shared LRU cache helped eliminate repeated data loads that took around 30 minutes. The backend used Flask, MongoDB, Redis, Docker, and Nginx on AWS EC2.”
 
 Do not describe document fingerprinting, watermark extraction, web crawling, OCR, or a particular classification algorithm as implemented features: the supplied sources do not establish those mechanisms.
 
@@ -45,7 +45,7 @@ flowchart TB
         REDIS["Redis\nBroker in published cache example"]
         CACHE["In-memory Celery LRUCache\nWorker-process scope"]
     end
-    PG[(PostgreSQL)]
+    
     MONGO[(MongoDB - analysis data)]
     INPUT["16 GB+ CSV reporting datasets\nStorage location unspecified"]
     PDF[PDF reports]
@@ -67,9 +67,9 @@ flowchart TB
     WORKER --> PDF
 ```
 
-**Confirmed components:** Angular is listed in Gordian's portfolio skills; Flask, PostgreSQL, Redis, Celery, AWS EC2, Docker, Nginx, Python, Pandas, NumPy, Matplotlib, and MongoDB appear in its project bullets or supporting career materials, with the tenancy correction above. Nginx routed traffic, and Docker packaged services. Celery generated reports, with shared LRU caching of expensive data loads.
+**Confirmed components:** Angular is listed in Gordian's portfolio skills; Flask, MongoDB, Redis, Celery, AWS EC2, Docker, Nginx, Python, Pandas, NumPy, Matplotlib, and MongoDB appear in its project bullets or supporting career materials, with the tenancy correction above. Nginx routed traffic, and Docker packaged services. Celery generated reports, with shared LRU caching of expensive data loads.
 
-**Reconstruction limits:** PostgreSQL's exact entities, the API-to-analysis contract, MongoDB read/write paths, production Redis configuration, frontend report delivery, and worker placement are not documented. The EC2 box groups the backend hosting environment; it does not assert one machine. Docker grouping does not establish one container per box. The application was single-tenant. Redis is explicitly the broker in the published example; the production configuration is not independently recovered.
+**Reconstruction limits:** The API-to-analysis contract, MongoDB read/write paths, production Redis configuration, frontend report delivery, and worker placement are not documented. The EC2 box groups the backend hosting environment; it does not assert one machine. Docker grouping does not establish one container per box. The application was single-tenant. Redis is explicitly the broker in the published example; the production configuration is not independently recovered.
 
 ### Reporting execution path
 
@@ -107,8 +107,7 @@ The documented optimization removes repeated loading work; it does not prove a 3
 | Routing | Nginx | Route traffic and integrate backend services |
 | Runtime packaging | Docker | Package services and standardize development environments |
 | Hosting | AWS EC2 | Backend hosting; instance count and topology unknown |
-| Application persistence | PostgreSQL | Backend persistence; exact schema unverified |
-| Analysis storage | MongoDB | Data store associated with piracy analytics and visualization |
+| Database | MongoDB | Application and analysis persistence; PostgreSQL was not used |
 | Data processing | Pandas, NumPy | Analyze data and implement piracy-detection processing |
 | Detection | TF-IDF with cosine similarity | Fitted text representation and document similarity scoring to identify possible plagiarism |
 | Visualization | Matplotlib | Visualize piracy-related data for product decisions |
@@ -242,11 +241,11 @@ Redis dispatched Celery work in the published implementation pattern. The in-pro
 
 ## 6. Single-tenant backend, persistence, and deployment
 
-Merin confirms this application served one client as a single-tenant system. Multiple users, uploads, and reports do not imply multiple tenants. Flask, PostgreSQL, Redis, Celery, Docker, Nginx, and EC2 are listed in the project materials; the exact service boundaries and deployment automation remain unspecified.
+Merin confirms this application served one client as a single-tenant system. Multiple users, uploads, and reports do not imply multiple tenants. Flask, MongoDB, Redis, Celery, Docker, Nginx, and EC2 are listed in the project materials; the exact service boundaries and deployment automation remain unspecified.
 
 Authorization still needs to protect reference files, competitor uploads, and report access. A useful design discussion covers permitted users, file validation, dataset versions, and comparison-job ownership without inventing a tenant-routing layer.
 
-PostgreSQL and MongoDB were both present. A possible division is application metadata versus analysis records, but actual ownership and consistency requirements need confirmation.
+MongoDB was the only database used by Gordian; there was no PostgreSQL application store.
 
 ## 7. Contributions and evidence
 
