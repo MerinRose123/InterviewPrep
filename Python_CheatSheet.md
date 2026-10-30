@@ -8,6 +8,7 @@ Interviewers often ask you to write code, then ask what happens when it fails or
 - [Dataclasses](#2-dataclasses)
 - [Instance, class, and static methods](#3-instance-class-and-static-methods)
 - [Properties, getters, setters, and deleters](#4-properties-getters-setters-and-deleters)
+- [Access modifiers and encapsulation](#access-modifiers-and-encapsulation-in-python)
 - [Decorators](#5-decorators)
 - [Generators, iterators, and coroutines](#6-generators-iterators-and-coroutines)
   - [Generators](#generator)
@@ -200,6 +201,84 @@ del p.price
 ```
 
 `__get__`, `__set__`, and `__delete__` form the descriptor protocol. Defining `__set__` or `__delete__` makes it a data descriptor, which takes precedence over an instance-dictionary entry. `__set_name__` receives the declared attribute name when the owner class is created.
+
+## Access modifiers and encapsulation in Python
+
+### How do you add public, protected, and private access modifiers in Python?
+
+**Interview answer:** Python does not have Java-style `public`, `protected`, or `private` keywords. Access is communicated by naming conventions; two leading underscores also trigger **name mangling**, which reduces accidental attribute collisions but does not enforce security.
+
+| Style | Example | Meaning | Enforced? |
+|---|---|---|---|
+| Public | `name` | Public API, freely accessible | No restriction |
+| Non-public / “protected” convention | `_salary` | Internal implementation detail; subclasses can still use it | No |
+| Name-mangled / “private” convention | `__password` | Rewritten to `_ClassName__password` in the class definition | Not true access control |
+| Special (“dunder”) | `__init__` | Python-defined special method, **not** private | No |
+
+```python
+class Employee:
+    def __init__(self):
+        self.name = "Alice"          # public
+        self._salary = 50_000        # internal-use convention
+        self.__password = "secret"   # name-mangled
+
+emp = Employee()
+print(emp.name)                # Alice
+print(emp._salary)             # 50000 (allowed)
+# print(emp.__password)        # AttributeError
+print(emp._Employee__password) # secret (still accessible)
+```
+
+### Is `__password` really private?
+
+No. In a class definition, `__password` becomes `_Employee__password`. It primarily prevents accidental name collisions in inheritance. This is **not** a security boundary, and sensitive data should not be protected by naming conventions alone.
+
+```python
+class Parent:
+    def __init__(self):
+        self.__value = "parent"
+
+    def read_parent(self):
+        return self.__value
+
+class Child(Parent):
+    def __init__(self):
+        super().__init__()
+        self.__value = "child"
+
+c = Child()
+print(c.read_parent())  # parent
+print(c._Child__value)  # child
+# The two attributes do not overwrite one another.
+```
+
+### How do you implement a getter or setter?
+
+Use `@property` to validate or compute an attribute while keeping normal attribute syntax:
+
+```python
+class Employee:
+    def __init__(self, salary):
+        self.salary = salary
+
+    @property
+    def salary(self):
+        return self._salary
+
+    @salary.setter
+    def salary(self, value):
+        if value < 0:
+            raise ValueError("Salary cannot be negative")
+        self._salary = value
+
+emp = Employee(50_000)
+emp.salary = 60_000
+# emp.salary = -1  # ValueError
+```
+
+**Common interviewer traps:** A single underscore does not block external access; double underscores do not provide true privacy; `__init__` is a special method, not a private method; `@property` controls attribute behavior, not who can access it.
+
+**30-second response:** “Python uses naming conventions instead of strict access-modifier keywords. Public names have no prefix, a single underscore signals an internal or protected-by-convention member, and two leading underscores trigger class-name mangling. None of these enforce Java-like private access. For controlled reads and writes, I use properties.”
 
 ## 5. Decorators
 
