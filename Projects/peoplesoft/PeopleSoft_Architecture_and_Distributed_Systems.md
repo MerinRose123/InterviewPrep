@@ -371,6 +371,23 @@ Restartability depends on deliberate commit boundaries and retained state. A fai
 
 ## 7. Search Framework, OpenSearch, Elasticsearch, and indexing
 
+### Elasticsearch-era search architecture
+
+This simplified view shows how PeopleSoft indexes application data, serves searches, and displays dashboards in the historical Elasticsearch stack.
+
+```mermaid
+flowchart TB
+    DB[(PeopleSoft Database)] -->|Application data| SF[Search Framework]
+    SF -->|Index via Direct Transfer or IB| ES[(Elasticsearch)]
+    UI[PeopleSoft UI] <-->|Search requests and results| ES
+    METRICS[PeopleSoft Health Metrics] --> LS[Logstash]
+    LS -->|Monitoring data| ES
+    ES -->|Indexed data| K[Kibana Dashboards]
+    K -->|Embedded dashboards| UI
+```
+
+Logstash is a separate ingestion path, rather than a required hop for application index builds. Kibana queries Elasticsearch indexes to display dashboards. This historical diagram omits RTI; its staging flow is described below. For newer certified stacks, use the OpenSearch and OpenSearch Dashboards terminology and release-specific behavior. [Oracle historical Search Framework architecture](https://docs.oracle.com/cd/F44947_01/pt858pbr3/eng/pt/tpst/task_PeopleSoftSearchFrameworkArchitecture.html)
+
 ### The source of truth and its search projection
 
 The transactional database stores authoritative business records and PeopleTools search metadata. OpenSearch stores a derived index optimized for text search, filtering, and aggregations. Search Framework defines which records and fields are exposed and how they are secured. Search success is not a replacement for transactional validation.
