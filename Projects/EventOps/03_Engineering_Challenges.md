@@ -1,6 +1,6 @@
 # EventOps — engineering challenges and decisions
 
-## 5. Event scheduling and participant availability
+## Event scheduling and participant availability
 
 Event scheduling used an **out-of-office calendar** to check participant availability. This establishes absence-based availability checking, rather than necessarily a complete meeting-calendar free/busy integration. SSO was used for application login, alongside manual login; the exact mechanism used to retrieve calendar data is not currently remembered. The identity/calendar provider, SSO protocol, calendar-access API, permissions/scopes, and representation of availability remain unverified. SSO establishes identity; the data integration still needs appropriate authorization to read calendar information.
 
@@ -30,7 +30,7 @@ An availability query followed by an unprotected save can race with another requ
 
 ---
 
-## 6. Conditional workflows and email notifications
+## Conditional workflows and email notifications
 
 EventOps included rule-based triggers, conditional task generation, and automated email notifications. Merin contributed to these automation capabilities and access controls.
 
@@ -56,7 +56,7 @@ Repeated execution requires an identity for each logical action occurrence and s
 
 ---
 
-## 7. Background processing with Celery and Redis
+## Background processing with Celery and Redis
 
 Celery and Redis supported background processing, and Celery Beat scheduled periodic tasks. PDF generation is a confirmed Celery workload. The assignment of email work to Celery, Redis's exact role, retry settings, and acknowledgment settings have not been recalled.
 
@@ -73,7 +73,7 @@ A reference implementation scans for reminders that are due, rechecks that the a
 
 ---
 
-## 8. Detailed event PDF reporting
+## Detailed event PDF reporting
 
 Merin worked on PDF reports containing extensive event details. Generation ran as a **Celery task**. Event contents were added by formatting/populating an **HTML template**, and the populated HTML was converted to PDF.
 
@@ -124,13 +124,13 @@ There is no EventOps benchmark proving a renderer fastest or most memory efficie
 
 ## Project-specific engineering challenge scenarios
 
-[Project architecture](Interview_Guide.md) · [Detailed interview Q&A](05_Interview_QA.md)
+[Project architecture](Project_Reference.md) · [Detailed interview Q&A](05_Interview_QA.md)
 
 ## Interview opening (90 seconds)
 
 “EventOps managed organizational events, participants, spaces, equipment, availability, workflows, notifications, and reporting. I contributed to migrating a Django monolith toward Flask-based services, Docker-based deployment on EC2 with Nginx routing, scheduling and email workflows, detailed PDF reporting, and backend testing. The application used PostgreSQL, Django ORM, Celery/Redis, and Angular. I also improved important-area pytest coverage from roughly 40% to 70%. The most interesting engineering discussions are service boundaries, consistency in scheduling, background work, tenant isolation, and the trade-offs of keeping a shared database during migration.”
 
-## 1. Challenge: splitting a Django monolith into Flask services
+## Challenge: splitting a Django monolith into Flask services
 
 **Why the change:** Feature changes in the monolith were increasingly difficult to isolate, regressions affected other areas, and testing became harder.
 
@@ -142,7 +142,7 @@ Flask allows focused services with explicit dependencies and routes, but introdu
 
 **Follow-ups:** How did you select extraction boundaries? How were models and migrations handled with a shared database? How did Nginx route traffic? How were deployments coordinated? How did you keep cross-service contracts stable?
 
-## 2. Challenge: shared PostgreSQL during service extraction
+## Challenge: shared PostgreSQL during service extraction
 
 **Interviewer:** “Are these really independent microservices if they use the same database?”
 
@@ -152,7 +152,7 @@ Separate deployment is not the same as independent data ownership. A shared data
 
 **Scenario:** A schema migration changes a column consumed by multiple services. Explain expand/contract migrations: add compatible fields, deploy readers/writers safely, migrate data, then remove the old field only after consumers have moved.
 
-## 3. Challenge: preventing double-booking of equipment or space
+## Challenge: preventing double-booking of equipment or space
 
 **Interviewer:** “Two users reserve the same equipment at the same time. Both read it as available. How do you prevent a conflict?”
 
@@ -166,7 +166,7 @@ Separate deployment is not the same as independent data ownership. A shared data
 
 **Follow-ups:** What if an event is rescheduled? How do time zones and recurring events affect overlap? What if the user retries after a timeout? How do you test simultaneous reservations?
 
-## 4. Challenge: participant availability and external calendars
+## Challenge: participant availability and external calendars
 
 **Interviewer:** “How do you schedule an event when participants' availability comes from an external calendar?”
 
@@ -174,7 +174,7 @@ Define whether external availability is authoritative, cached, or advisory. Fetc
 
 **Trade-off:** Real-time checks improve freshness but increase latency and external dependency risk. Caching improves speed but introduces stale availability. Graceful degradation must not silently book a resource known to be unavailable.
 
-## 5. Challenge: event notification reliability
+## Challenge: event notification reliability
 
 **Project components:** Rule-based triggers, automated email, SendGrid, Celery, Redis, and periodic Celery Beat tasks.
 
@@ -186,7 +186,7 @@ Separate the core event transaction from the notification side effect. An asynch
 
 **Follow-ups:** What if Celery retries after sending the email? What if Beat runs twice? How would you implement deduplication? How do you observe a stuck notification?
 
-## 6. Challenge: report generation and storage
+## Challenge: report generation and storage
 
 **Project components:** Detailed event PDF reports, HTML-based templates, background processing, and S3 storage.
 
@@ -196,7 +196,7 @@ Model the report as a job with status and stable identity. Return a job ID and l
 
 **Trade-off:** Synchronous generation is easy for small reports; asynchronous generation adds job management but avoids long HTTP requests. A cached report reduces CPU work but needs an invalidation strategy when event details change.
 
-## 7. Challenge: tenant isolation in a shared application
+## Challenge: tenant isolation in a shared application
 
 **Project component:** Django multi-tenancy and role-based access control.
 
@@ -206,7 +206,7 @@ Tenant isolation should be systematic, not dependent on every endpoint rememberi
 
 **Trade-offs:** Schema-based isolation can simplify some boundaries but increases migration and operational overhead. Shared-table isolation is operationally simpler but demands disciplined filtering and testing.
 
-## 8. Real challenge: increasing pytest coverage from 40% to 70%
+## Real challenge: increasing pytest coverage from 40% to 70%
 
 **Project contribution:** Expanded backend test coverage, including mocking and multi-tenancy-related test infrastructure.
 
@@ -216,7 +216,7 @@ Explain test boundaries: pure business logic tests, ORM/database integration tes
 
 **Trade-off:** High coverage alone does not guarantee meaningful tests. Prioritize concurrency, authorization, tenant isolation, and regressions around service extraction.
 
-## 9. Challenge: Docker Compose, Nginx, and deployment
+## Challenge: Docker Compose, Nginx, and deployment
 
 **Interviewer:** “What does Docker Compose solve, and what doesn't it solve?”
 
@@ -224,7 +224,7 @@ Compose describes containers, services, environment, networks, and dependencies 
 
 **Follow-ups:** How do containers find each other? How do you debug a 502? How do you handle database migrations? What is the difference between scaling a service and adding a route? What changes if moving from Compose to Kubernetes?
 
-## 10. Rapid-fire scenarios
+## Rapid-fire scenarios
 
 | Scenario | Strong answer direction |
 |---|---|
@@ -238,7 +238,7 @@ Compose describes containers, services, environment, networks, and dependencies 
 | Celery worker crashes mid-report | Retry semantics, idempotent artifact publication, and job status |
 | Coverage increases but production regressions persist | Evaluate test quality, contracts, and concurrency cases |
 
-## 11. Interview delivery pattern
+## Interview delivery pattern
 
 Describe the **actual feature or migration**, then the **architecture boundary**, then the **trade-off**. For a scenario question, clearly frame the solution as how you would design or harden that workflow. This produces a confident senior-level answer without conflating a design exercise with project history.
 

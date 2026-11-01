@@ -1,6 +1,6 @@
 # Gordian: interview questions and answers
 
-[Architecture, stack, and contributions](Interview_Guide.md) · [All projects](../README.md)
+[Architecture, stack, and contributions](Project_Reference.md) · [All projects](../README.md)
 
 **How to practice:** “Experience answer” uses the supplied career materials. “Design answer” explains how to approach a problem and does not claim that Gordian implemented it. Recall prompts identify details needed for a stronger personal answer.
 
@@ -159,7 +159,7 @@ The following questions are retained for breadth, definitions, and targeted foll
 
 ### 7. How did similarity scoring identify possible plagiarism?
 
-**Experience answer:** We used TF-IDF with cosine similarity. After cleaning and analyzing the inputs, the fitted TF-IDF model represented reference content and competitor documents in a shared vector space. Cosine similarity measured their similarity to identify possible plagiarism. Development used Jupyter Notebook and Anaconda with Pandas, NumPy, and Matplotlib. TF-IDF fitting learns corpus vocabulary and term weights without requiring plagiarism labels. See the [algorithm explanation](Interview_Guide.md#algorithm-tf-idf-with-cosine-similarity).
+**Experience answer:** We used TF-IDF with cosine similarity. After cleaning and analyzing the inputs, the fitted TF-IDF model represented reference content and competitor documents in a shared vector space. Cosine similarity measured their similarity to identify possible plagiarism. Development used Jupyter Notebook and Anaconda with Pandas, NumPy, and Matplotlib. TF-IDF fitting learns corpus vocabulary and term weights without requiring plagiarism labels. See the [algorithm explanation](Project_Reference.md#algorithm-tf-idf-with-cosine-similarity).
 
 
 ### 8. How would you decide between classification and regression?
@@ -199,7 +199,7 @@ The following questions are retained for breadth, definitions, and targeted foll
 
 ### 16. How did you process a 16 GB file with limited RAM?
 
-**Experience answer:** The documented implementation used a Celery pipeline with reusable in-memory/shared LRU caching under memory constraints. The exact parsing and memory-management strategy is not recorded. A concrete [recommended memory and caching design](Interview_Guide.md#recommended-design-memory-worker-concurrency-and-invalidation) explains chunked preparation, versioned sparse artifacts, memory-based concurrency, and invalidation. **Design follow-up:** I would assess column selection, data types, chunked aggregation, intermediates, and concurrency. I would not claim that we used chunking or held the entire dataset in RAM without confirmation.
+**Experience answer:** The documented implementation used a Celery pipeline with reusable in-memory/shared LRU caching under memory constraints. The exact parsing and memory-management strategy is not recorded. A concrete [recommended memory and caching design](Project_Reference.md#recommended-design-memory-worker-concurrency-and-invalidation) explains chunked preparation, versioned sparse artifacts, memory-based concurrency, and invalidation. **Design follow-up:** I would assess column selection, data types, chunked aggregation, intermediates, and concurrency. I would not claim that we used chunking or held the entire dataset in RAM without confirmation.
 
 ### 17. What does an LRU cache do?
 
@@ -209,7 +209,7 @@ The following questions are retained for breadth, definitions, and targeted foll
 
 **Experience answer:** I used Celery's LRUCache through a custom base task to reuse expensive reference resources within a worker process, as described in my [article](https://merin-rose-tom.medium.com/caching-in-celery-using-lrucache-357053251e96). Independent worker processes do not automatically share this memory.
 
-**Recommended configuration:** Start with one long-lived heavy-comparison process, cache the fitted TF-IDF vectorizer and bounded prepared reference partitions, and reuse them across uploads. Use versioned cache keys and measure peak memory before increasing concurrency. This configuration is the selected design recommendation; exact historical settings remain unverified. [Detailed design](Interview_Guide.md#recommended-design-memory-worker-concurrency-and-invalidation).
+**Recommended configuration:** Start with one long-lived heavy-comparison process, cache the fitted TF-IDF vectorizer and bounded prepared reference partitions, and reuse them across uploads. Use versioned cache keys and measure peak memory before increasing concurrency. This configuration is the selected design recommendation; exact historical settings remain unverified. [Detailed design](Project_Reference.md#recommended-design-memory-worker-concurrency-and-invalidation).
 
 
 ### 19. Was Redis the dataset cache?
@@ -297,51 +297,51 @@ The following questions are retained for breadth, definitions, and targeted foll
 
 ## MongoDB design and performance
 
-The [MongoDB deep dive](MongoDB_Interview_Deep_Dive.md) includes an illustrative schema, validation, mongosh/PyMongo reads, aggregation, indexes, explain plans, and pagination code. These are proposed examples; the historical collection design remains unverified.
+The [MongoDB deep dive](../../Cheatsheets/MongoDB.md) includes an illustrative schema, validation, mongosh/PyMongo reads, aggregation, indexes, explain plans, and pagination code. These are proposed examples; the historical collection design remains unverified.
 
 ### 38. How would you compare MongoDB with PostgreSQL for a similar system?
 
-**Experience answer:** Gordian used MongoDB, not PostgreSQL. **Hypothetical design comparison:** Equipment records can have varying nested attributes, and comparison outputs can fit a document model. I would choose based on access patterns, consistency needs, and operational cost. PostgreSQL with JSONB could also work. [Tradeoffs](MongoDB_Interview_Deep_Dive.md#1-why-mongodb-why-not-postgresql).
+**Experience answer:** Gordian used MongoDB, not PostgreSQL. **Hypothetical design comparison:** Equipment records can have varying nested attributes, and comparison outputs can fit a document model. I would choose based on access patterns, consistency needs, and operational cost. PostgreSQL with JSONB could also work. [Tradeoffs](../../Cheatsheets/MongoDB.md#1-why-mongodb-why-not-postgresql).
 
 ### 39. How did you create the schema?
 
-**Design answer:** Define access patterns and document boundaries first, then choose stable identity/version fields, bounded embedded attributes, references, validation, and indexes. One possible design uses reference records, comparison jobs, and candidate matches as separate collections. This is not a recovered Gordian schema. [Schema and creation code](MongoDB_Interview_Deep_Dive.md#2-how-do-you-create-a-schema-in-mongodb).
+**Design answer:** Define access patterns and document boundaries first, then choose stable identity/version fields, bounded embedded attributes, references, validation, and indexes. One possible design uses reference records, comparison jobs, and candidate matches as separate collections. This is not a recovered Gordian schema. [Schema and creation code](../../Cheatsheets/MongoDB.md#2-how-do-you-create-a-schema-in-mongodb).
 
 ### 40. How do you fetch data from MongoDB in Python?
 
-**Answer:** Use PyMongo filters and projections with `find_one` for a single result or iterate a `find` cursor for multiple results. Apply sort and limit at the server. Match BSON types correctly, especially ObjectId identifiers. [Python and mongosh examples](MongoDB_Interview_Deep_Dive.md#3-how-do-you-fetch-data).
+**Answer:** Use PyMongo filters and projections with `find_one` for a single result or iterate a `find` cursor for multiple results. Apply sort and limit at the server. Match BSON types correctly, especially ObjectId identifiers. [Python and mongosh examples](../../Cheatsheets/MongoDB.md#3-how-do-you-fetch-data).
 
 ### 41. When do you embed and when do you reference?
 
-**Design answer:** Embed small bounded attributes read with their parent. Reference large or independently queried relationships. For example, keep equipment attributes with a reference record, but put potentially many candidate matches in their own collection. Avoid an indefinitely growing matches array in one job document. [Model](MongoDB_Interview_Deep_Dive.md#2-how-do-you-create-a-schema-in-mongodb).
+**Design answer:** Embed small bounded attributes read with their parent. Reference large or independently queried relationships. For example, keep equipment attributes with a reference record, but put potentially many candidate matches in their own collection. Avoid an indefinitely growing matches array in one job document. [Model](../../Cheatsheets/MongoDB.md#2-how-do-you-create-a-schema-in-mongodb).
 
 ### 42. How do you prevent inconsistent document types?
 
-**Design answer:** Normalize inputs in application code and enforce important types and ranges with collection validation. A validator can require ObjectId job identifiers and numeric scores in a defined range. It does not establish that a similarity score correctly measures copying. [Validator example](MongoDB_Interview_Deep_Dive.md#2-how-do-you-create-a-schema-in-mongodb).
+**Design answer:** Normalize inputs in application code and enforce important types and ranges with collection validation. A validator can require ObjectId job identifiers and numeric scores in a defined range. It does not establish that a similarity score correctly measures copying. [Validator example](../../Cheatsheets/MongoDB.md#2-how-do-you-create-a-schema-in-mongodb).
 
 ### 43. How do you choose indexes?
 
-**Design answer:** Start with an actual query. For one job's top matches, evaluate a compound index on comparison ID, descending score, and descending ID. Confirm the plan and measured benefit. Extra indexes also cost writes and storage. [Index examples](MongoDB_Interview_Deep_Dive.md#5-which-indexes-would-you-create).
+**Design answer:** Start with an actual query. For one job's top matches, evaluate a compound index on comparison ID, descending score, and descending ID. Confirm the plan and measured benefit. Extra indexes also cost writes and storage. [Index examples](../../Cheatsheets/MongoDB.md#5-which-indexes-would-you-create).
 
 ### 44. How do you debug a slow MongoDB query?
 
-**Design answer:** Capture its filter, sort, projection, result limit, and realistic parameter values. Use execution statistics to inspect examined keys/documents, returned rows, and sort behavior. Then assess server load and application/network time. Fix and compare the same workload. [Diagnosis and explain code](MongoDB_Interview_Deep_Dive.md#6-how-do-you-handle-slow-queries).
+**Design answer:** Capture its filter, sort, projection, result limit, and realistic parameter values. Use execution statistics to inspect examined keys/documents, returned rows, and sort behavior. Then assess server load and application/network time. Fix and compare the same workload. [Diagnosis and explain code](../../Cheatsheets/MongoDB.md#6-how-do-you-handle-slow-queries).
 
 ### 45. Does IXSCAN mean a query is optimized?
 
-**Answer:** No. An index scan may still examine many keys or require expensive filtering and sorting. Interpret examined counts relative to returned results and expected selectivity. Measure real application latency as well. [Explain interpretation](MongoDB_Interview_Deep_Dive.md#6-how-do-you-handle-slow-queries).
+**Answer:** No. An index scan may still examine many keys or require expensive filtering and sorting. Interpret examined counts relative to returned results and expected selectivity. Measure real application latency as well. [Explain interpretation](../../Cheatsheets/MongoDB.md#6-how-do-you-handle-slow-queries).
 
 ### 46. How do you avoid loading a large result into memory?
 
-**Design answer:** Push filtering/projection to the database, bound UI results, and iterate cursors for exports or processing. A batch size controls transfer batches; it does not cap the entire result set. Avoid collecting an unbounded cursor into a Python list. [Cursor example](MongoDB_Interview_Deep_Dive.md#3-how-do-you-fetch-data).
+**Design answer:** Push filtering/projection to the database, bound UI results, and iterate cursors for exports or processing. A batch size controls transfer batches; it does not cap the entire result set. Avoid collecting an unbounded cursor into a Python list. [Cursor example](../../Cheatsheets/MongoDB.md#3-how-do-you-fetch-data).
 
 ### 47. How do you paginate large match results?
 
-**Design answer:** Use a deterministic sort and continuation values from the last score/ID pair instead of increasingly large offsets. Keep completed results immutable or version them so updates do not move rows during pagination. [Pagination code](MongoDB_Interview_Deep_Dive.md#7-how-do-you-paginate-without-a-large-skip).
+**Design answer:** Use a deterministic sort and continuation values from the last score/ID pair instead of increasingly large offsets. Keep completed results immutable or version them so updates do not move rows during pagination. [Pagination code](../../Cheatsheets/MongoDB.md#7-how-do-you-paginate-without-a-large-skip).
 
 ### 48. How do you calculate a report summary in MongoDB?
 
-**Design answer:** Match one comparison, then group candidate records for counts and similarity statistics. Multiple candidates can refer to the same uploaded row, so define deduplication and the denominator before presenting a copying amount. [Aggregation code](MongoDB_Interview_Deep_Dive.md#4-how-do-you-aggregate-results).
+**Design answer:** Match one comparison, then group candidate records for counts and similarity statistics. Multiple candidates can refer to the same uploaded row, so define deduplication and the denominator before presenting a copying amount. [Aggregation code](../../Cheatsheets/MongoDB.md#4-how-do-you-aggregate-results).
 
 ## Redis versus RabbitMQ
 
@@ -406,4 +406,4 @@ Sources: [AWS SQS overview](https://docs.aws.amazon.com/AWSSimpleQueueService/la
 - Prepare one genuine failure/debugging story with the change and verification you performed.
 - Keep 50,000+ analysis points, 16 GB+ reporting inputs, and 30-minute repeated loads as distinct metrics.
 
-Sources and evidence boundaries are recorded in the [companion guide](Interview_Guide.md#8-sources-and-remaining-confirmations).
+Sources and evidence boundaries are recorded in the [companion guide](Project_Reference.md#8-sources-and-remaining-confirmations).

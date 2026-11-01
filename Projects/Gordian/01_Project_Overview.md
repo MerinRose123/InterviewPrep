@@ -1,6 +1,6 @@
 # Gordian — project overview
 
-## 1. Project overview
+## Project overview
 
 Gordian was a single-tenant document/data copying-detection application built for the client. The client maintained a large reference CSV containing industrial-equipment details and related information. Users uploaded competitor documents, and the application compared their contents against the reference data to assess the amount of copying and produce analysis/reports for the client's review and possible legal follow-up. This workflow and single-tenant scope are directly confirmed by Merin.
 
@@ -22,7 +22,7 @@ The resume and LinkedIn profile place the relevant work under the InApp Software
 
 Do not describe document fingerprinting, watermark extraction, web crawling, OCR, or a particular classification algorithm as implemented features: the supplied sources do not establish those mechanisms.
 
-## 3. Technology stack and responsibilities
+## Technology stack and responsibilities
 
 | Layer | Technology | Documented role / boundary |
 |---|---|---|
@@ -42,7 +42,7 @@ Do not describe document fingerprinting, watermark extraction, web crawling, OCR
 
 Redis and the shared LRU cache are separate documented concepts. Do not assume Redis held the large dataset or implemented the LRU cache. Likewise, general resume skills such as Kafka, Kubernetes, S3, and scikit-learn are not established Gordian dependencies.
 
-## 6. Single-tenant backend, persistence, and deployment
+## Single-tenant backend, persistence, and deployment
 
 Merin confirms this application served one client as a single-tenant system. Multiple users, uploads, and reports do not imply multiple tenants. Flask, MongoDB, Redis, Celery, Docker, and EC2 are listed in the project materials; the exact service boundaries and deployment automation remain unspecified.
 
@@ -50,11 +50,11 @@ Authorization still needs to protect reference files, competitor uploads, and re
 
 MongoDB was the sole database used by Gordian. There was no PostgreSQL-backed application store.
 
-## 7. Contributions and evidence
+## Contributions and evidence
 
 | Contribution / scale | Evidence | Safe interpretation |
 |---|---|---|
-| Python piracy detection with Pandas / NumPy | Resume, LinkedIn, portfolio | Personal implementation contribution; algorithm unspecified |
+| Python piracy detection with Pandas / NumPy | Resume, LinkedIn, portfolio | Personal implementation contribution; TF-IDF with cosine similarity confirmed; exact preprocessing, fitting corpus, and thresholds still need confirmation |
 | 50,000+ data points with Matplotlib / MongoDB | All three | Analysis scale, not prediction accuracy or request throughput |
 | Celery PDF pipeline for 16 GB+ datasets | All three; portfolio names Gordian | Large-data reporting; no verified final runtime or RAM figure |
 | Shared LRU cache avoiding repeated 30-minute loads | LinkedIn and portfolio; resume says in-memory task cache | Data reuse optimization; published local-memory cache pattern; production pool settings unknown |
@@ -79,4 +79,12 @@ MongoDB was the sole database used by Gordian. There was no PostgreSQL-backed ap
 - [Engineering challenges](03_Engineering_Challenges.md)
 - [Scaling and failure scenarios](04_Scaling_and_Failure_Scenarios.md)
 - [Interview Q&A](05_Interview_QA.md)
-- [Comprehensive technical reference](Interview_Guide.md)
+- [Comprehensive technical reference](Project_Reference.md)
+
+## MongoDB experience and example boundaries
+
+**Evidence boundary:** MongoDB use for Gordian analysis is documented. Its actual collections, indexes, and original selection rationale are not recovered. The linked MongoDB guide contains an illustrative design for the confirmed single-tenant reference-CSV versus competitor-document workflow. Its examples are not recovered production schemas or indexes.
+
+**Confirmed processing context:** The backend was Flask, PDF generation used WeasyPrint, and data cleaning/analytics supported document similarity scoring. The record-pair schema below is an illustrative storage design, not confirmation of the granularity of the original document-level scores.
+
+General modeling, query, index, and performance exercises are in the [MongoDB guide](../../Cheatsheets/MongoDB.md).

@@ -7,7 +7,7 @@
 
 ---
 
-## 2. Technology stack
+## Technology stack
 
 | Layer | Technology | Role |
 |---|---|---|
@@ -36,7 +36,7 @@ Celery Beat handled periodic scheduling and SendGrid handled email sending. Djan
 
 ---
 
-## 3. Product purpose and scope
+## Product purpose and scope
 
 EventOps managed organizational event operations involving spaces, equipment, people, budgeting, and reporting. It combined event planning with workflow automation, reducing repeated coordination and manual follow-up.
 
@@ -63,7 +63,7 @@ The [official EventOPS website](https://eventops.com/) supplies current product 
 
 ---
 
-## 10. Conceptual data model
+## Conceptual data model
 
 The following entities explain the domain. They are reference names, not recovered production tables.
 
@@ -84,7 +84,7 @@ Query patterns determine useful indexes. Examples include event lists by status/
 
 ---
 
-## 11. My contributions
+## My contributions
 
 ### Backend modernization
 
@@ -109,7 +109,7 @@ The portfolio records Angular components supporting visualizations, authenticati
 
 ---
 
-## 12. Testing approach and results
+## Testing approach and results
 
 The confirmed testing work used pytest and mocking; the portfolio also identifies Django multi-tenancy testing. Coverage improved from 40% to 70%. The exact measured code scope and whether the metric was line or branch coverage remain unknown.
 
@@ -129,7 +129,7 @@ The table is a proposed coverage map; individual cases require confirmation. Uni
 
 ---
 
-## 14. Implementation notes and sources
+## Implementation notes and sources
 
 Confirmed details and clearly labeled reference explanations are kept separate. Remaining unknowns are the exact deployed service boundaries/names, table/write ownership, inter-service REST details (tentative recollection), tenancy package/context selection, calendar integration, Beat schedule configuration, historical renderer/template engine, SendGrid integration method, EC2/VPC topology, security-group rules, exact Compose YAML/image registry/S3 access configuration, exact auth/decorator configuration and identity propagation, rollout, and exact coverage scope. No private EventOps source code has been inspected.
 
@@ -138,7 +138,7 @@ The 16 GB CSV pipeline, shared LRU cache, piracy analytics, and Oracle/OCI work 
 Sources:
 
 - Merin's direct clarifications: corrected dates, stack, common database, confirmed Django multi-tenancy with tentative schema isolation, SendGrid, Celery Beat and upcoming-event reminders, SSO/manual login, Nginx mainly for routing, tentative inter-service REST recollection, migration driven by feature complexity/regressions/testing difficulty, Django auth and admin API decorators, SSO-associated calendar access, migration contribution, out-of-office scheduling, Celery PDF tasks and S3 uploads, Django ORM with Q/F expressions, EC2 hosting and per-service Docker images/builds, populated HTML templates, personal WeasyPrint use, pytest/mocking, and 40%-70% coverage.
-- [Resume](/Users/merin/workspace/printMyCV/MerinRoseTomSSE7_N.pdf) and [LinkedIn export](/Users/merin/Downloads/LinkedinProfile.pdf): role history, EventOps capabilities, recognition, and career statements.
+- Resume and LinkedIn export: role history, EventOps capabilities, recognition, and career statements.
 - Supplied [portfolio](https://merinrose123.github.io/merin-rose-tom/) excerpt: product scope, architecture, frontend, testing, workflows, RBAC, and approximate outcomes. Direct website retrieval was unavailable; the supplied text was used.
 - [Official EventOPS website](https://eventops.com/): public product context, accessed 28 October 2026.
 - Framework documentation linked within the relevant technical sections supports reference explanations; it does not establish historical versions or implementation.

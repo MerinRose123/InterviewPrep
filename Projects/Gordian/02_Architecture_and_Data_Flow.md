@@ -1,6 +1,6 @@
 # Gordian — Architecture and data flow
 
-[Project guide](Interview_Guide.md) · [Challenge scenarios](03_Engineering_Challenges.md) · [Interview Q&A](05_Interview_QA.md)
+[Project guide](Project_Reference.md) · [Challenge scenarios](03_Engineering_Challenges.md) · [Interview Q&A](05_Interview_QA.md)
 
 Gordian was a **single-tenant Flask application**, not a collection of independent microservices. Its distributed-systems discussion centers on **web requests, Celery tasks, a Redis broker, process-local cached data, persistent analysis results, and PDF generation**.
 

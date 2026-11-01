@@ -2,7 +2,7 @@
 
 **InApp | September 2019-November 2021 | Merin Rose Tom**
 
-[Project architecture, technology stack, workflows, and contributions](Interview_Guide.md)
+[Project architecture, technology stack, workflows, and contributions](Project_Reference.md)
 
 The project description above is followed here by introductions, structured decision deep dives, and quick revision questions. Deep dives follow mechanism → example → tradeoff → failure → evidence. Evidence states what was confirmed, what is tentative, and what would verify a proposed explanation.
 
@@ -285,7 +285,7 @@ Each answer follows **mechanism → example → tradeoff → failure → evidenc
 
 #### A22. Explain SSO behind the scenes.
 
-**Mechanism:** The application delegates authentication to a trusted identity provider, validates the returned result, maps it to a local user, and establishes application login. In an OIDC code-flow example, the browser receives a code at a registered callback and the backend exchanges it before validating the identity token. SAML uses a different assertion flow. See the [step-by-step walkthrough](Interview_Guide.md#sso-behind-the-scenes-reference-walkthrough).
+**Mechanism:** The application delegates authentication to a trusted identity provider, validates the returned result, maps it to a local user, and establishes application login. In an OIDC code-flow example, the browser receives a code at a registered callback and the backend exchanges it before validating the identity token. SAML uses a different assertion flow. See the [step-by-step walkthrough](Project_Reference.md#sso-behind-the-scenes-reference-walkthrough).
 
 **Example:** A user chooses SSO in Angular, authenticates at the corporate provider, and returns to EventOps. If a provider session already exists, a repeated password prompt may be unnecessary. Manual login is the other confirmed option.
 
@@ -299,7 +299,7 @@ Each answer follows **mechanism → example → tradeoff → failure → evidenc
 
 #### A23. Why use Docker Compose, and how does its YAML work?
 
-**Mechanism:** Compose defines services and their images/build contexts, commands, configuration, networks, and volumes in YAML. It creates containers and related resources as one application. See the [annotated example](Interview_Guide.md#docker-compose-running-the-services-together).
+**Mechanism:** Compose defines services and their images/build contexts, commands, configuration, networks, and volumes in YAML. It creates containers and related resources as one application. See the [annotated example](Project_Reference.md#docker-compose-running-the-services-together).
 
 **Example:** Nginx, API services, Redis, Celery workers, and Beat can be started from one definition. Separate service images are confirmed; the exact historical grouping of worker/Beat images remains unknown.
 
@@ -309,7 +309,7 @@ Each answer follows **mechanism → example → tradeoff → failure → evidenc
 
 **Evidence:** Merin recalls Compose, per-service images, and EC2 deployment. The YAML in the project guide is a reference example, not historical configuration.
 
-For command revision and YAML fields, see the [Compose commands](Interview_Guide.md#common-docker-compose-commands) and [YAML explanation](Interview_Guide.md#reading-the-yaml-contents).
+For command revision and YAML fields, see the [Compose commands](Project_Reference.md#common-docker-compose-commands) and [YAML explanation](Project_Reference.md#reading-the-yaml-contents).
 
 #### A24. How did containers communicate, and why was VPC mentioned?
 

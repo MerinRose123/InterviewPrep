@@ -1,12 +1,12 @@
 # Gordian — Engineering challenges
 
-[Project guide](Interview_Guide.md) · [Interview Q&A](05_Interview_QA.md) · [MongoDB deep dive](MongoDB_Interview_Deep_Dive.md)
+[Project guide](Project_Reference.md) · [Interview Q&A](05_Interview_QA.md) · [MongoDB deep dive](../../Cheatsheets/MongoDB.md)
 
 ## Interview opening (90 seconds)
 
 “Gordian was a single-tenant copying-detection and reporting application. Users submitted competitor documents that were compared with a large equipment-related reference dataset. I worked on Python-based cleaning and analysis using Pandas and NumPy, TF-IDF and cosine similarity, analysis and visualization using Matplotlib and MongoDB, and asynchronous PDF generation using Celery and WeasyPrint. A major engineering challenge was processing reports against datasets larger than 16 GB under memory constraints. I used an in-process Celery LRU cache to avoid repeated reference-data loads that could take around 30 minutes.”
 
-## 1. Challenge: comparing competitor documents with reference data
+## Challenge: comparing competitor documents with reference data
 
 **Pipeline:** Competitor document → text/data normalization → TF-IDF representation in a compatible feature space → cosine similarity → candidate matches → analysis and reporting.
 
@@ -18,7 +18,7 @@ Exact matching misses small wording changes; TF-IDF weights terms based on their
 
 **Follow-ups:** What preprocessing matters? How do you handle numeric specifications and model identifiers? How do you pick a threshold? How do you distinguish repeated common phrases from copying? How do you aggregate matches into a document-level score?
 
-## 2. Challenge: handling 16 GB+ reference/reporting data
+## Challenge: handling 16 GB+ reference/reporting data
 
 **Interviewer:** “Your input is bigger than available RAM. How do you process it?”
 
@@ -28,7 +28,7 @@ Start with the memory budget and the real access pattern. A CSV's on-disk size i
 
 **Whiteboard:** Show memory consumed by worker process + parsed reference data + TF-IDF vectors + report rendering + concurrent tasks.
 
-## 3. Real challenge: expensive repeated data loading
+## Real challenge: expensive repeated data loading
 
 **Project contribution:** Repeated reference-data loads could take approximately 30 minutes; the Celery LRU caching pattern reused expensive resources across tasks.
 
@@ -40,7 +40,7 @@ The cache was attached to a custom Celery base-task pattern and reused within a 
 
 **Follow-ups:** What is the cache key? How do you invalidate it when the reference CSV changes? What happens on a cold start? What if several tasks miss simultaneously? How do you avoid evicting a huge object under memory pressure?
 
-## 4. Challenge: asynchronous report generation
+## Challenge: asynchronous report generation
 
 **Project components:** Flask backend, Celery workers, WeasyPrint, and PDF output.
 
@@ -52,7 +52,7 @@ Report rendering is long-running and memory-intensive. Moving it to Celery decou
 
 **Failure scenario:** Worker crashes after writing a PDF but before acknowledging the task. A retry should not publish inconsistent duplicate outputs. Use stable job IDs, temporary artifact names, atomic final publication where possible, and an explicit job state machine.
 
-## 5. Challenge: Redis versus RabbitMQ for Celery
+## Challenge: Redis versus RabbitMQ for Celery
 
 **Interviewer:** “Why Redis instead of RabbitMQ?”
 
@@ -62,7 +62,7 @@ Redis served as the broker in the documented Celery implementation pattern. The 
 
 **Follow-ups:** What happens when a task runs longer than the broker's visibility timeout? How do you handle retries? How do you avoid duplicate reports? Why is Redis the broker rather than the large dataset cache?
 
-## 6. Challenge: MongoDB persistence versus task queues
+## Challenge: MongoDB persistence versus task queues
 
 **Project components:** MongoDB was the project's database; Celery and Redis handled background task execution and messaging. PostgreSQL was not used.
 
@@ -74,7 +74,7 @@ MongoDB persisted application and analysis data. Amazon SQS is a message-deliver
 
 **Follow-ups:** What indexes help a query filtered by comparison ID and score? How would you paginate large result sets? How do you prevent duplicate comparison records after retries?
 
-## 7. Challenge: false positives and explainability
+## Challenge: false positives and explainability
 
 **Interviewer:** “A competitor's document contains common equipment terms. Your detector flags it as copying. What would you do?”
 
@@ -82,7 +82,7 @@ Inspect normalization, candidate selection, TF-IDF vocabulary, term weighting, a
 
 **Trade-offs:** Lower thresholds improve recall but increase review workload. Higher thresholds reduce false positives but can miss paraphrased or partial copying. Evaluate with the business cost of each error type.
 
-## 8. Challenge: data changes while reports are running
+## Challenge: data changes while reports are running
 
 **Interviewer:** “A new reference CSV is uploaded while an old report is still processing. Which data version should the result use?”
 
@@ -90,7 +90,7 @@ Give each report an explicit reference-dataset version and use it throughout ana
 
 **Trade-off:** Version pinning improves reproducibility but temporarily retains multiple datasets. Immediate invalidation saves memory but can break long-running jobs or mix results from different inputs.
 
-## 9. Rapid-fire scenarios
+## Rapid-fire scenarios
 
 | Scenario | Strong answer direction |
 |---|---|
@@ -104,6 +104,6 @@ Give each report an explicit reference-dataset version and use it throughout ana
 | User expects report immediately | Return a job ID, expose progress, and notify or poll for completion |
 | Broker redelivers a task | Assume at-least-once behavior and make side effects repeatable |
 
-## 10. Interview delivery pattern
+## Interview delivery pattern
 
 Anchor the answer in the real pipeline: **competitor input → analysis → data reuse → asynchronous reporting**. Then explain the bottleneck, the technical choice, the alternative, and what happens on retry or scale. Your strongest personal story is the large-data/Celery/cache optimization; use it as the foundation for deeper system-design questions.
