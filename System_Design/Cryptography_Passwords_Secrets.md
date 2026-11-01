@@ -200,6 +200,8 @@ Envelope flow: generate data key â†’ encrypt data with an authenticated scheme â
 
 ## 7. What is Shamir's Secret Sharing?
 
+**Optional specialist depth:** focus first on password storage, access control, and credential rotation; the finite-field example is supplementary.
+
 Split a secret into `n` shares such that any `k` can reconstruct it; fewer than `k` reveal no information about it under the scheme's assumptions. It is threshold secret splitting, not the same as encrypting data or obtaining consensus.
 
 **Conceptual example:** a 3-of-5 scheme creates five points on a random degree-2 polynomial over a finite field; its constant term encodes the secret. Any three points determine that polynomial. Ordinary real-number interpolation is not a secure implementation.

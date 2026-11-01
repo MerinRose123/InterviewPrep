@@ -79,12 +79,21 @@ MongoDB was the sole database used by Gordian. There was no PostgreSQL-backed ap
 - [Engineering challenges](03_Engineering_Challenges.md)
 - [Scaling and failure scenarios](04_Scaling_and_Failure_Scenarios.md)
 - [Interview Q&A](05_Interview_QA.md)
-- [Comprehensive technical reference](Project_Reference.md)
 
 ## MongoDB experience and example boundaries
 
 **Evidence boundary:** MongoDB use for Gordian analysis is documented. Its actual collections, indexes, and original selection rationale are not recovered. The linked MongoDB guide contains an illustrative design for the confirmed single-tenant reference-CSV versus competitor-document workflow. Its examples are not recovered production schemas or indexes.
 
-**Confirmed processing context:** The backend was Flask, PDF generation used WeasyPrint, and data cleaning/analytics supported document similarity scoring. The record-pair schema below is an illustrative storage design, not confirmation of the granularity of the original document-level scores.
+**Confirmed processing context:** The backend was Flask, PDF generation used WeasyPrint, and data cleaning/analytics supported document similarity scoring. The record-pair schema in the linked MongoDB guide is illustrative, not confirmation of the original score granularity.
 
 General modeling, query, index, and performance exercises are in the [MongoDB guide](../../Cheatsheets/MongoDB.md).
+
+## Sources
+
+- Merin’s direct clarifications, October 28, 2026: Flask only, WeasyPrint PDFs, document similarity scores, data cleaning/analytics, reference CSV, competitor uploads, copying assessment, potential legal follow-up, and single-tenant scope.
+- [Caching article](https://merin-rose-tom.medium.com/caching-in-celery-using-lrucache-357053251e96): published cache pattern.
+- [Gordian official 2021 announcement](https://www.gordian.com/press/gordian-releases-2022-rsmeans-data-construction-costs/): client business context only.
+
+- Resume, InApp Software Engineer section.
+- LinkedIn profile PDF, InApp experience on page 3.
+- [Portfolio](https://merinrose123.github.io/merin-rose-tom/), Gordian project card and InApp experience, reviewed October 28, 2026. The Gordian card explicitly links the reporting pipeline and backend stack to this project.

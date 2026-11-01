@@ -1,6 +1,6 @@
 # Gordian — Architecture and data flow
 
-[Project guide](Project_Reference.md) · [Challenge scenarios](03_Engineering_Challenges.md) · [Interview Q&A](05_Interview_QA.md)
+[Project guide](01_Project_Overview.md) · [Challenge scenarios](03_Engineering_Challenges.md) · [Interview Q&A](05_Interview_QA.md)
 
 Gordian was a **single-tenant Flask application**, not a collection of independent microservices. Its distributed-systems discussion centers on **web requests, Celery tasks, a Redis broker, process-local cached data, persistent analysis results, and PDF generation**.
 
@@ -99,6 +99,10 @@ sequenceDiagram
 ```
 
 **Trade-off:** Version pinning makes results reproducible but may require retaining older data while jobs run. Using “latest” at each step risks mixing versions. Versioned cache keys make invalidation and traceability clearer.
+
+## Deployment and measurement boundaries
+
+The architecture shows logical responsibilities, not a recovered host/container topology. Flask, MongoDB, Redis, Celery, Docker, EC2, Angular, Pandas/NumPy, Matplotlib, and WeasyPrint are documented components. Exact API-to-analysis contracts, production Redis configuration, report delivery, and worker placement remain unspecified; Nginx is not confirmed. The 50,000+ analysis points and 16 GB+ reporting datasets are separate reported scales and are not established as the same dataset. Cache reuse removes repeated loads, not necessarily 30 minutes from every report's end-to-end latency.
 
 ## 5. Failure and scale drills
 

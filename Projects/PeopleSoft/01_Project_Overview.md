@@ -48,19 +48,17 @@ Use this as an opening, then choose one contribution. Do not recite every techno
 
 “I worked on the add-node functionality for OpenSearch integration in PeopleSoft Cloud Manager, enabling an additional node to be added to the search deployment. The feature sits across infrastructure provisioning, search-node configuration, and PeopleSoft integration. For an existing cluster, shard allocation and recovery are distinct from an application-data reindex. I recall an indexing step in our workflow; I would verify its implementation before naming the exact mechanism.”
 
-Complete the story with your actual cluster roles, node count, DPK/release, node-join logic, failure handling, index-build method, and validation. An alias switch, custom change-data-capture pipeline, or zero-downtime migration is not established by your resume.
 
 ### Vault deep dive
 
 “I designed a credential framework using OCI Vault to centralize secrets and automate rotation, recovery, and updates needed during scaling. The central challenge was keeping the authoritative credential and its distributed consumers consistent. I would explain the actual change order, validation, and recovery path, including how a new node obtained the current credential.”
 
-Supply a real incident or edge case and the measurement behind the stated time savings.
 
 ### Exadata deep dive
 
-“I helped deliver Exadata integration across releases. The important boundary was connecting PeopleSoft lifecycle management to a database platform with its own resources, credentials, and multi-node behavior. My role was [actual feature/module], and the key issue I solved was [actual failure or design constraint].”
+“I helped deliver Exadata integration across releases, connecting PeopleSoft lifecycle management to a database platform with its own resources, connectivity, credentials, and multi-node behavior.”
 
-Fill the brackets before practicing. Do not claim to have designed Oracle RAC, Exadata storage, or the entire database service when your contribution was integration.
+See the shared [details-to-recall checklist](../README.md#details-to-recall) for missing ownership and implementation specifics.
 
 
 ## Study path

@@ -124,7 +124,7 @@ There is no EventOps benchmark proving a renderer fastest or most memory efficie
 
 ## Project-specific engineering challenge scenarios
 
-[Project architecture](Project_Reference.md) · [Detailed interview Q&A](05_Interview_QA.md)
+[Project architecture](01_Project_Overview.md) · [Detailed interview Q&A](05_Interview_QA.md)
 
 ## Interview opening (90 seconds)
 
@@ -237,8 +237,3 @@ Compose describes containers, services, environment, networks, and dependencies 
 | Nginx returns 502 | Trace proxy route, container networking, upstream health, and logs |
 | Celery worker crashes mid-report | Retry semantics, idempotent artifact publication, and job status |
 | Coverage increases but production regressions persist | Evaluate test quality, contracts, and concurrency cases |
-
-## Interview delivery pattern
-
-Describe the **actual feature or migration**, then the **architecture boundary**, then the **trade-off**. For a scenario question, clearly frame the solution as how you would design or harden that workflow. This produces a confident senior-level answer without conflating a design exercise with project history.
-

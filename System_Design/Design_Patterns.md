@@ -88,6 +88,33 @@ class TimedGateway:
 
 **Dig deeper:** retry outside metrics measures attempts differently from metrics outside retry. Authentication around a client does not mean every operation is authorized. A remote proxy cannot hide distributed failure semantics safely.
 
+### Java adapter and decorator example
+
+```java
+interface PaymentPort { Receipt charge(PaymentRequest request); }
+final class VendorAdapter implements PaymentPort {
+    private final VendorClient client;
+    VendorAdapter(VendorClient client) { this.client = client; }
+    public Receipt charge(PaymentRequest request) {
+        return mapReceipt(client.pay(mapRequest(request)));
+    }
+    // mapRequest/mapReceipt translate vendor types and domain semantics.
+}
+final class MeteredPayments implements PaymentPort {
+    private final PaymentPort next;
+    MeteredPayments(PaymentPort next) { this.next = next; }
+    public Receipt charge(PaymentRequest request) {
+        long start = System.nanoTime();
+        try { return next.charge(request); }
+        finally { recordDuration(System.nanoTime() - start); }
+    }
+}
+```
+
+The adapter changes the interface boundary; the decorator retains it while adding behavior. Metrics callbacks should not replace a successful payment with an unrelated metrics failure.
+
+**Dig deeper:** should retry wrap metrics or metrics wrap retry? One counts whole operations; the other can count attempts. Where is the idempotency key generated and retained?
+
 ## 4. Observer vs. durable events?
 
 Observer notifies subscribed listeners when something changes. In-process listeners are useful for local reactions but can lose work on crash and can make synchronous errors/order surprising. A broker/outbox adds a durability boundary, not merely a different callback syntax.

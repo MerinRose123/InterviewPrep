@@ -1,6 +1,6 @@
 # MongoDB: schema, queries, and performance
 
-[Project guide](../Projects/Gordian/Project_Reference.md) · [Interview Q&A](../Projects/Gordian/05_Interview_QA.md)
+[Project guide](../Projects/Gordian/01_Project_Overview.md) · [Interview Q&A](../Projects/Gordian/05_Interview_QA.md)
 
 This general guide uses an illustrative single-tenant document-comparison application. Schemas, indexes, and queries are practice designs, not recovered production details. For confirmed Gordian context and experience limits, see the [project evidence](../Projects/Gordian/01_Project_Overview.md#mongodb-experience-and-example-boundaries).
 

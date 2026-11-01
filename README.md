@@ -78,6 +78,15 @@ See the [full topic map](System_Design/README.md#topic-map) for all files.
 
 Start with the [frontend questions from recent interviews](Cheatsheets/Frontend_Angular_React.md). Follow its Fundamentals → Angular → React sections. Practice shared browser/JavaScript concepts first, then framework questions and request-race scenarios, connecting answers to your actual project responsibilities.
 
+## Revision priority
+
+- **Daily revision:** core language/framework questions, SQL, API/security fundamentals, and project introductions.
+- **Deeper reference:** implementation examples, architecture diagrams, and failure exercises linked from those answers.
+- **Optional depth:** explicitly labeled specialist topics; revisit when a role or interview requires them.
+- **Unfinished notes:** use the single [project details-to-recall checklist](Projects/README.md#details-to-recall).
+
+For spoken answers use **problem → mechanism → example → tradeoff → result/evidence**. Use “I did” for recorded experience and “I would” for design exercises. Keep unknown metrics and implementation details in the recall checklist instead of filling gaps with guesses.
+
 ## How to use the material
 
 1. Review the relevant language/framework and database fundamentals.

@@ -175,6 +175,8 @@ SequencedCollection<String> backwards = names.reversed();
 
 ### Java 25
 
+**Optional version depth:** prioritize the Java version used in your target role and your own codebase before newer feature details.
+
 - **Scoped values:** safely share an immutable value down a call chain for a bounded scope; useful for request context and virtual-thread workloads, and an alternative to some `ThreadLocal` uses.
 - **Module import declarations:** import all packages exported by a module with `import module ...;` rather than listing each package.
 - **Compact source files and instance `main`:** reduce ceremony for small programs; a launchable program can omit an explicit class and use a supported instance `main`. The traditional `public static void main(String[] args)` remains the most portable form.

@@ -85,6 +85,8 @@ BF.EXISTS known-products product:42
 
 ## 3. Bloom vs. counting Bloom vs. Cuckoo filter?
 
+**Optional depth:** understand ordinary Bloom filters first; counting/Cuckoo variants are follow-ups.
+
 | Structure | Deletion | Strength | Cost / failure |
 |---|---|---|---|
 | Bloom | No safe ordinary bit clearing | Simple, compact membership filter | Clearing shared bits creates false negatives |
@@ -108,6 +110,8 @@ PFCOUNT visitors:day:2026-10-27
 **Dig deeper:** how do time windows expire? Can you remove one user's historical contributions? Standard HLL does not provide arbitrary deletion.
 
 ## 5. Count-Min Sketch and top-K?
+
+**Optional analytics depth:** prioritize consistent hashing, rate limiting, caching, and basic Bloom filters for the core study path.
 
 CMS hashes each item into one counter per row and estimates frequency using the minimum. For non-negative updates, collision interference overestimates counts under the usual assumptions. Width/depth control approximation error and failure probability; it does not enumerate all keys by itself.
 

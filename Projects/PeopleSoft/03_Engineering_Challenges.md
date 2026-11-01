@@ -111,7 +111,3 @@ Define resource ownership, age, dependencies, exclusions, and deletion eligibili
 | Terraform plan changes unexpected resources | Investigate drift, provider/version differences, state, and configuration |
 | Release-day package installation fails | Inspect transitive dependencies and artifact reproducibility |
 | High customer adoption but unknown throughput | Discuss workload-specific concurrency, latency, operation durations, and bottlenecks |
-
-## How to deliver answers in a senior interview
-
-For each scenario, give **context → architecture boundary → failure mechanism → decision and alternative → result → prevention**. Lead with the actual project contribution; use the hypothetical question to demonstrate broader engineering judgment. See the linked project guide for detailed component explanations and the existing Q&A for additional follow-ups.

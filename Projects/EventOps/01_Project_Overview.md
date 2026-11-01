@@ -131,15 +131,14 @@ The table is a proposed coverage map; individual cases require confirmation. Uni
 
 ## Implementation notes and sources
 
-Confirmed details and clearly labeled reference explanations are kept separate. Remaining unknowns are the exact deployed service boundaries/names, table/write ownership, inter-service REST details (tentative recollection), tenancy package/context selection, calendar integration, Beat schedule configuration, historical renderer/template engine, SendGrid integration method, EC2/VPC topology, security-group rules, exact Compose YAML/image registry/S3 access configuration, exact auth/decorator configuration and identity propagation, rollout, and exact coverage scope. No private EventOps source code has been inspected.
+Project facts come from Merin’s clarifications and career materials; diagrams, schemas, and proposed tests are labeled reference designs. No private EventOps source code was inspected. Missing implementation details are in the [shared recall checklist](../README.md#details-to-recall).
 
 The 16 GB CSV pipeline, shared LRU cache, piracy analytics, and Oracle/OCI work are not attributed to EventOps without evidence.
 
 Sources:
 
-- Merin's direct clarifications: corrected dates, stack, common database, confirmed Django multi-tenancy with tentative schema isolation, SendGrid, Celery Beat and upcoming-event reminders, SSO/manual login, Nginx mainly for routing, tentative inter-service REST recollection, migration driven by feature complexity/regressions/testing difficulty, Django auth and admin API decorators, SSO-associated calendar access, migration contribution, out-of-office scheduling, Celery PDF tasks and S3 uploads, Django ORM with Q/F expressions, EC2 hosting and per-service Docker images/builds, populated HTML templates, personal WeasyPrint use, pytest/mocking, and 40%-70% coverage.
+- Merin’s direct clarifications: dates, stack, migration, scheduling, reporting, authentication/tenancy, deployment, and testing outcomes.
 - Resume and LinkedIn export: role history, EventOps capabilities, recognition, and career statements.
 - Supplied [portfolio](https://merinrose123.github.io/merin-rose-tom/) excerpt: product scope, architecture, frontend, testing, workflows, RBAC, and approximate outcomes. Direct website retrieval was unavailable; the supplied text was used.
 - [Official EventOPS website](https://eventops.com/): public product context, accessed 28 October 2026.
 - Framework documentation linked within the relevant technical sections supports reference explanations; it does not establish historical versions or implementation.
-

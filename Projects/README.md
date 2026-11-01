@@ -18,8 +18,29 @@ Prioritize **architecture, service boundaries, scale, distributed correctness, f
 
 - PeopleSoft: [Runtime architecture and distributed systems](PeopleSoft/Runtime_Architecture.md), [Terraform](../Cheatsheets/Terraform.md), [technology comparisons](../Cheatsheets/Technology_Comparisons.md), [real debugging story](PeopleSoft/Debugging_Stories.md).
 - Gordian: [MongoDB interview deep dive](../Cheatsheets/MongoDB.md).
-- Original comprehensive project references: [EventOps](EventOps/Project_Reference.md), [PeopleSoft](PeopleSoft/Cloud_Manager.md), [Gordian](Gordian/Project_Reference.md). These preserve long-form details while the reorganized guides are refined.
+- PeopleSoft deeper references: [Cloud Manager orchestration](PeopleSoft/Cloud_Manager.md) and [runtime architecture](PeopleSoft/Runtime_Architecture.md). The numbered guides are the entry points; use these references for implementation depth.
 
 ## System-design connections
 
 Use the [System Design index](../System_Design/README.md) for general mechanisms. In a project interview, start with the actual project architecture, explain a concrete challenge, then compare alternatives and walk through failure or scale.
+
+## Details to recall
+
+This is the single working checklist for incomplete experience details. Technical examples labeled as designs remain useful practice; they are not historical implementation claims.
+
+| Project / story | Missing details |
+|---|---|
+| EventOps migration | Actual extracted services/modules, write ownership, rollout sequence, individual responsibilities |
+| EventOps integration and tenancy | Calendar provider/API, SSO/session configuration, tenancy package/context selection, cross-service identity |
+| EventOps reporting and deployment | Historical renderer, template engine, Beat ownership/configuration, image registry, Compose setup, report delivery |
+| EventOps prefetch regression | Screen/API and relation, conditional trigger, load-test setup, observed after-fix timing and actual validation |
+| EventOps testing and outcomes | Measured coverage scope/type, one real tenant-isolation regression test, definitions behind efficiency metrics |
+| Gordian similarity | Input fields/parsing, fitted corpus, cleaning/n-grams, score aggregation/threshold, review examples and validation |
+| Gordian reporting/cache | Production pool/concurrency, memory budget, cache keys/limits/invalidation, dataset storage, report delivery, observed runtime |
+| Gordian persistence | Actual collections/indexes/query paths; practice schemas in the MongoDB guide are illustrative |
+| PeopleSoft workflow/Terraform | Modules and releases changed, invocation mechanism, state/backend, operation identity, locks/retries, readiness checks |
+| PeopleSoft OpenSearch/Exadata | Actual node roles/counts, add-node/reindex sequence, integration module, compatibility/connectivity issue, validation |
+| PeopleSoft Vault/CI/CD | Consumer update order and recovery, actual pipeline stages, measurement inputs for time savings and cost attribution |
+| PeopleSoft AI-agent work | One implemented workflow, sources/tools, permissions, evaluation, measurement behind the productivity claim |
+| CLI dependency incident | Exact dependency/version/error, packaging format, Merin's individual diagnostic/fix steps, validation and outcome |
+| Additional real incident | Symptom, evidence, rejected hypotheses, root cause, personal fix, regression check, and result |

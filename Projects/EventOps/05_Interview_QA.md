@@ -2,7 +2,7 @@
 
 **InApp | September 2019-November 2021 | Merin Rose Tom**
 
-[Project architecture, technology stack, workflows, and contributions](Project_Reference.md)
+[Project architecture, technology stack, workflows, and contributions](01_Project_Overview.md)
 
 The project description above is followed here by introductions, structured decision deep dives, and quick revision questions. Deep dives follow mechanism → example → tradeoff → failure → evidence. Evidence states what was confirmed, what is tentative, and what would verify a proposed explanation.
 
@@ -23,7 +23,7 @@ The project description above is followed here by introductions, structured deci
 
 ### Architecture decision deep dives
 
-Each answer follows **mechanism → example → tradeoff → failure → evidence**. Mechanism explains how the choice works; example connects it to EventOps; tradeoff identifies what it costs; failure describes what can break and the appropriate response; evidence distinguishes project facts from illustrative reasoning. Suggested mitigations below are not claims that they were implemented.
+Use the shared [practice method](../../README.md#revision-priority). Evidence labels distinguish actual project details from proposed designs.
 
 #### A1. Why was Django suitable for the original application?
 
@@ -285,7 +285,7 @@ Each answer follows **mechanism → example → tradeoff → failure → evidenc
 
 #### A22. Explain SSO behind the scenes.
 
-**Mechanism:** The application delegates authentication to a trusted identity provider, validates the returned result, maps it to a local user, and establishes application login. In an OIDC code-flow example, the browser receives a code at a registered callback and the backend exchanges it before validating the identity token. SAML uses a different assertion flow. See the [step-by-step walkthrough](Project_Reference.md#sso-behind-the-scenes-reference-walkthrough).
+**Mechanism:** The application delegates authentication to a trusted identity provider, validates the returned result, maps it to a local user, and establishes application login. In an OIDC code-flow example, the browser receives a code at a registered callback and the backend exchanges it before validating the identity token. SAML uses a different assertion flow. See the [step-by-step walkthrough](02_Architecture_and_Data_Flow.md#sso-behind-the-scenes-reference-walkthrough).
 
 **Example:** A user chooses SSO in Angular, authenticates at the corporate provider, and returns to EventOps. If a provider session already exists, a repeated password prompt may be unnecessary. Manual login is the other confirmed option.
 
@@ -299,7 +299,7 @@ Each answer follows **mechanism → example → tradeoff → failure → evidenc
 
 #### A23. Why use Docker Compose, and how does its YAML work?
 
-**Mechanism:** Compose defines services and their images/build contexts, commands, configuration, networks, and volumes in YAML. It creates containers and related resources as one application. See the [annotated example](Project_Reference.md#docker-compose-running-the-services-together).
+**Mechanism:** Compose defines services and their images/build contexts, commands, configuration, networks, and volumes in YAML. It creates containers and related resources as one application. See the [annotated example](02_Architecture_and_Data_Flow.md#docker-compose-running-the-services-together).
 
 **Example:** Nginx, API services, Redis, Celery workers, and Beat can be started from one definition. Separate service images are confirmed; the exact historical grouping of worker/Beat images remains unknown.
 
@@ -309,7 +309,7 @@ Each answer follows **mechanism → example → tradeoff → failure → evidenc
 
 **Evidence:** Merin recalls Compose, per-service images, and EC2 deployment. The YAML in the project guide is a reference example, not historical configuration.
 
-For command revision and YAML fields, see the [Compose commands](Project_Reference.md#common-docker-compose-commands) and [YAML explanation](Project_Reference.md#reading-the-yaml-contents).
+For command revision and YAML fields, see the [Compose commands](02_Architecture_and_Data_Flow.md#common-docker-compose-commands) and [YAML explanation](02_Architecture_and_Data_Flow.md#reading-the-yaml-contents).
 
 #### A24. How did containers communicate, and why was VPC mentioned?
 
@@ -450,54 +450,19 @@ For command revision and YAML fields, see the [Compose commands](Project_Referen
 
 ## Actual load-testing regression: eager prefetch delayed initial loading
 
-**Confirmed by Merin:** Merin personally added Django `prefetch_related()` to reduce database calls, expecting faster loading. Load testing exposed an approximately **10-second data-loading delay**. Merin also implemented the fix: removing prefetch from the initial load and fetching the extra data conditionally in a subsequent call. The screen, relation, load-test parameters, and exact after-fix timing remain to be recalled. Production exposure is not established by this clarification.
-
-### Mechanism → example → tradeoff → failure → evidence
-
-**Mechanism:** Eager loading changes when related data is fetched. Django's `prefetch_related()` performs additional lookups and associates related objects in Python. It can help when those objects are needed, but unnecessary related data can add work to initial loading. This describes the likely ORM mechanism; the exact historical prefetch expression is not supplied. See [Django prefetch documentation](https://docs.djangoproject.com/en/5.2/ref/models/querysets/#prefetch-related).
-
-**Example:** I added prefetch to the initial data load to reduce database calls. During load testing, that path showed an approximately 10-second loading delay. The fix separated the initial data load from the optional related-data fetch, which happened only when the relevant condition was met. A detail panel opened by a user is an illustrative condition, not a confirmed EventOps screen or trigger.
-
-**Tradeoff:** The corrected design shortened the initial critical path and avoided loading optional data for every initial request. Users who needed the extra information incurred a subsequent call and its own loading/error state. It changed the timing and necessity of work; it did not prove the combined duration of both calls was always lower. When most callers need the related data immediately, selective/bounded prefetch might still be appropriate.
-
-**Failure:** The optimization put additional data loading on the critical path. The observation supports removing that eager work, but does not establish whether the dominant cost was SQL execution, data volume, Python association, serialization, or another step. Removing prefetch indiscriminately could also introduce repeated per-object queries if a serializer still accesses each relation; a batched conditional fetch avoids that particular design pitfall.
-
-**Evidence:** The confirmed facts are my ownership of both changes, the goal of reducing database calls, the approximate 10-second loading delay observed in load testing, and resolution through conditional fetching in a later call. The expected reduction in database calls was the motivation, not a supplied before/after measurement. There is no supplied after-fix latency, query count, row count, tenant size, or throughput figure. Do not claim “10 seconds to 200 ms,” an N+1 diagnosis, a large SQL join, or high-volume incident impact without recollection.
-
 ### Interview-ready answer
 
-> “I added Django `prefetch_related()` to reduce database calls, expecting it to improve loading speed. However, load testing exposed roughly a 10-second loading delay. I fixed the code by removing prefetch from the initial load and fetching the additional data conditionally in a subsequent call. That resolved the loading issue while introducing an extra call only when the data was needed. The lesson was that fewer database calls do not necessarily mean a faster user experience: I needed to consider how much work happened on the initial loading path and validate the change under load.”
+“I added Django `prefetch_related()` to reduce database calls, expecting faster loading. Load testing exposed roughly a 10-second loading delay. I fixed it by removing prefetch from the initial load and fetching the extra data conditionally in a subsequent call. This resolved the loading issue and kept optional work off the initial critical path, at the cost of another call when needed. Fewer database calls did not necessarily mean a faster user experience.”
 
-This demonstrates ownership of an optimization that regressed performance and of the corrective change. It is an actual load-testing finding; no production outage or exact after-fix latency is claimed.
+### Mechanism and tradeoff
 
-### Follow-up: why can prefetch be slower?
+`prefetch_related()` performs additional queries and associates related objects in Python. It helps when those objects are needed, but optional or excessive eager work can delay the initial response. Conditional fetching trades a shorter initial path for a later request and its own loading/error state. Removing prefetch while still reading every related object can introduce repeated per-item queries; a batched conditional fetch is a different choice. See [Django prefetch behavior](https://docs.djangoproject.com/en/5.2/ref/models/querysets/#prefetch-related).
 
-**Mechanism:** Avoiding repeated relation access is useful only if the saved work outweighs the extra fetch/association cost and the data is actually needed.
+### Scope and follow-ups
 
-**Example:** Optional event detail data does not need to block the initial response. This illustrates the incident's access-pattern change without identifying an unremembered relation.
+Merin owned both the original change and fix; the approximately 10-second delay occurred in load testing. The screen, relation, load-test setup, dominant cost, query counts, and after-fix timing remain unspecified. Production exposure and a specific N+1 diagnosis are not established.
 
-**Tradeoff:** Eager loading favors immediate access to required related data. Conditional loading favors optional or rarely used data. The right boundary is the smallest useful response for the user action.
-
-**Failure:** Using query count alone as the success metric can miss latency and payload costs. Conversely, simply deleting prefetch while still iterating through related objects can regress into many small queries.
-
-**Evidence:** Initial-load timing and required-versus-optional usage are directly relevant. Query timings, returned data volume, and serialization timing would distinguish underlying costs; those diagnostics are suggested, not confirmed historical actions.
-
-### Verification and regression checks to discuss
-
-These are proposed checks unless Merin recalls performing them:
-
-- Initial loading completes without fetching or serializing the optional relationship.
-- The subsequent call occurs only when its condition is satisfied, with the same authorization and tenant scope.
-- Optional-fetch failure leaves the initial data usable and exposes a clear retry state.
-- Representative small and large relationship sizes do not cause unbounded response work.
-- Query count and latency are checked separately; no per-item fetch loop is introduced.
-- If consistency across the two calls matters, the UI handles data changing between responses.
-
-### What makes this a notable answer
-
-The strength is a personally owned optimization, a regression exposed by load testing, a corrective change, and a clear tradeoff. It demonstrates performance judgment and avoiding unnecessary work. Scale relevance comes from how optional eager loading grows with relationship size and concurrent requests; actual high traffic or large record counts have not been established for this incident.
-
-Details worth recalling: the screen/API, related entity, conditional trigger, whether the later call was a browser API request, your contribution, how the delay was observed, and the after-fix result.
+**Proposed regression checks:** the initial path skips optional work; the later fetch retains authorization/tenant scope; its failure leaves initial data usable; representative relationship sizes remain bounded; query count and latency are measured separately; the UI handles changes between responses.
 
 ## Production-incident practice scenarios
 
@@ -618,11 +583,3 @@ The actual prefetch regression above is the primary performance story, detected 
 **Failure and response:** Suspend affected output delivery, preserve enough evidence to assess scope, and follow the real incident process if incorrect data may have been exposed. Reproduce A → B → A tasks on the same worker/connection, including an exception path. Select tenant context from validated task identity and restore it in guaranteed cleanup. Recheck authorization when delivering reports.
 
 **Evidence:** Tenant-scoped test data, sequential mixed-tenant reproduction, exception cleanup assertions, and no cross-tenant reads after the fix. Django multi-tenancy is confirmed; task context leaks, the tenancy package, and schema-level isolation are not.
-
-### Turning a matching scenario into your actual answer
-
-Use only a real recalled incident to complete this narrative:
-
-> “During [real period/workload], [specific workflow] showed [observed symptom]. My responsibility was [actual ownership]. I checked [real evidence], which showed [root cause]. We first [containment], then I [implemented change]. I added [regression check] and verified [observed result]. The tradeoff was [cost or remaining limitation].”
-
-Recover concrete details: symptom, approximate timing, code/module changed, diagnostic tool actually used, review/deployment responsibility, regression test, and recovery evidence. An honest qualitative result is preferable to invented p95 latency, request volumes, or customer impact. The known 40%-70% coverage result belongs to the testing improvement, not automatically to any of these incidents.

@@ -584,7 +584,7 @@ For a reference secure download design, the backend checks user/tenant access be
 
 ## Distributed architecture diagrams
 
-[Project guide](Project_Reference.md) · [Challenge scenarios](03_Engineering_Challenges.md) · [Interview Q&A](05_Interview_QA.md)
+[Project guide](01_Project_Overview.md) · [Challenge scenarios](03_Engineering_Challenges.md) · [Interview Q&A](05_Interview_QA.md)
 
 These diagrams separate the **project architecture** from **interview scenarios**. The system used Angular, Nginx, Django/Flask, Docker Compose on EC2, shared PostgreSQL, Celery/Redis, and external calendar/email integrations. The individual service boxes are **logical capabilities**, not a claim that every box was deployed as an independent service.
 
@@ -706,4 +706,3 @@ flowchart LR
 | Tenant data leaks across services | Consistent tenant context, authorization at each boundary, and cross-tenant tests |
 | One service deploys before a schema migration | Expand/contract schema compatibility |
 | Calendar API is down | Separate unknown availability from confirmed free slots; define fallback |
-

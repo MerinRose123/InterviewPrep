@@ -181,46 +181,11 @@ final class Sparrow implements Bird, Flying {
 
 ### 8. Which pattern would you use, and what problem does it solve?
 
-| Pattern | Practical trigger | Tradeoff / follow-up |
-|---|---|---|
-| Strategy | Runtime choice of pricing/provider/routing algorithm | Keep input/output/error semantics consistent |
-| Factory | Construction depends on configuration or subtype | Avoid hiding a global service locator behind `create()` |
-| Builder | Many optional construction inputs | Enforce required fields and valid combinations at `build()` |
-| Adapter | Vendor API doesn't match your domain port | Translate vendor failures and data types deliberately |
-| Decorator | Add metrics/retry/auth around the same contract | Wrapper order changes behavior; retries need idempotency |
-| Observer | Notify multiple listeners of an event | Ordering, listener failure, and delivery guarantees need definition |
-| Template method | Stable workflow with narrow overridable steps | Inheritance coupling; strategy may be easier to compose |
-| State | Behavior depends on lifecycle state | Avoid scattered booleans; persist transitions atomically |
-| Singleton | One instance in a deliberately defined scope | Global state hurts isolation; one per JVM does not mean one per cluster |
+Start with a real variation or boundary: strategy for interchangeable behavior, an adapter for an external interface, a decorator for added behavior, and explicit state transitions for lifecycle rules. Avoid abstractions without an independent reason to vary.
 
-### 9. How do Adapter and Decorator differ in code?
+Detailed pattern comparisons and the [Java adapter/decorator example](../System_Design/Design_Patterns.md#java-adapter-and-decorator-example) live in the [design-pattern guide](../System_Design/Design_Patterns.md).
 
-```java
-interface PaymentPort { Receipt charge(PaymentRequest request); }
-final class VendorAdapter implements PaymentPort {
-    private final VendorClient client;
-    VendorAdapter(VendorClient client) { this.client = client; }
-    public Receipt charge(PaymentRequest request) {
-        return mapReceipt(client.pay(mapRequest(request)));
-    }
-    // mapRequest/mapReceipt translate vendor types and domain semantics.
-}
-final class MeteredPayments implements PaymentPort {
-    private final PaymentPort next;
-    MeteredPayments(PaymentPort next) { this.next = next; }
-    public Receipt charge(PaymentRequest request) {
-        long start = System.nanoTime();
-        try { return next.charge(request); }
-        finally { recordDuration(System.nanoTime() - start); }
-    }
-}
-```
-
-The adapter changes the interface boundary; the decorator retains it while adding behavior. Metrics callbacks should not replace a successful payment with an unrelated metrics failure.
-
-**Dig deeper:** should retry wrap metrics or metrics wrap retry? One counts whole operations; the other can count attempts. Where is the idempotency key generated and retained?
-
-### 10. When is an enum/state machine better than many boolean flags?
+### 9. When is an enum/state machine better than many boolean flags?
 
 ```java
 enum OrderStatus { CREATED, PAID, SHIPPED, CANCELLED }
@@ -241,7 +206,7 @@ One state prevents combinations such as `paid=false, shipped=true` when those ar
 
 ## Dependency injection and object lifecycle
 
-### 11. Why constructor injection rather than constructing dependencies internally?
+### 10. Why constructor injection rather than constructing dependencies internally?
 
 ```java
 final class ReminderService {
@@ -266,7 +231,7 @@ Constructor injection makes required dependencies explicit and enables determini
 
 ## Design exercise: checkout
 
-### 12. Design checkout without a giant service or an unsafe distributed transaction
+### 11. Design checkout without a giant service or an unsafe distributed transaction
 
 **Clarify:** can prices change? Can inventory expire? Is payment synchronous? What identifies a retry of the same request?
 
@@ -296,7 +261,7 @@ A checkout application service orchestrates ports; domain objects validate local
 
 ## Refactoring and testing
 
-### 13. How would you refactor a large conditional safely?
+### 12. How would you refactor a large conditional safely?
 
 First characterize current behavior, including errors and edge cases. Extract cohesive branches behind a small contract, inject the selection rule, and migrate one path at a time. Do not rewrite unrelated persistence behavior during the extraction.
 

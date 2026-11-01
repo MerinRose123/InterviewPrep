@@ -797,6 +797,8 @@ Count only failures that indicate a dependency problem. For example, a bad custo
 
 ## 13. Metaclasses and the diamond problem
 
+**Priority:** constructors and method resolution are core; metaclass internals are optional depth unless the role requires framework internals.
+
 ### What is the difference between `__new__` and `__init__`?
 
 `__new__` creates and returns the object. `__init__` sets up an object after it has been created. In ordinary classes, you usually write `__init__` only. `__new__` is mainly useful when controlling object creation, especially for immutable types or specialized class construction.

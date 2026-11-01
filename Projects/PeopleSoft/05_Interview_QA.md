@@ -2,7 +2,7 @@
 
 **Start with 12 applied senior-engineer interview drills; 50 foundational and reference questions follow.**
 
-Use this file for spoken practice. Start with a direct answer, then add a concrete mechanism, a failure case, and your actual contribution. Personal implementation details and measurements must match your experience; proposed designs are not claims about delivered product internals.
+Use this file for spoken practice; see the shared [practice method](../../README.md#revision-priority).
 
 The answers are collected from the two researched guides. Follow their references and diagrams for deeper study:
 
@@ -13,8 +13,6 @@ The answers are collected from the two researched guides. Follow their reference
 - [Technology comparisons with familiar backend and cloud stacks](../../Cheatsheets/Technology_Comparisons.md)
 - [Real debugging stories: CM 16 OCI CLI dependency failure](Debugging_Stories.md)
 
-
-> **Recommended study order:** Start with the senior-engineer mock interviews below. Use the original topic questions at the end as a reference bank or for quick revision. They are intentionally secondary to the applied scenarios.
 
 ## Priority 1 — Realistic senior-engineer interview drills
 

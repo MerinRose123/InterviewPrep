@@ -1,11 +1,9 @@
 # Gordian: interview questions and answers
 
-[Architecture, stack, and contributions](Project_Reference.md) · [All projects](../README.md)
+[Architecture, stack, and contributions](01_Project_Overview.md) · [All projects](../README.md)
 
-**How to practice:** “Experience answer” uses the supplied career materials. “Design answer” explains how to approach a problem and does not claim that Gordian implemented it. Recall prompts identify details needed for a stronger personal answer.
+Practice method and experience/design labels: [repository guide](../../README.md#revision-priority).
 
-
-> **Recommended study order:** Start with the senior-engineer mock interviews below. Use the original topic questions at the end as a reference bank or for quick revision. They are intentionally secondary to the applied scenarios.
 
 ## Priority 1 — Realistic senior-engineer interview drills
 
@@ -159,7 +157,7 @@ The following questions are retained for breadth, definitions, and targeted foll
 
 ### 7. How did similarity scoring identify possible plagiarism?
 
-**Experience answer:** We used TF-IDF with cosine similarity. After cleaning and analyzing the inputs, the fitted TF-IDF model represented reference content and competitor documents in a shared vector space. Cosine similarity measured their similarity to identify possible plagiarism. Development used Jupyter Notebook and Anaconda with Pandas, NumPy, and Matplotlib. TF-IDF fitting learns corpus vocabulary and term weights without requiring plagiarism labels. See the [algorithm explanation](Project_Reference.md#algorithm-tf-idf-with-cosine-similarity).
+**Experience answer:** We used TF-IDF with cosine similarity. After cleaning and analyzing the inputs, the fitted TF-IDF model represented reference content and competitor documents in a shared vector space. Cosine similarity measured their similarity to identify possible plagiarism. Development used Jupyter Notebook and Anaconda with Pandas, NumPy, and Matplotlib. TF-IDF fitting learns corpus vocabulary and term weights without requiring plagiarism labels. See the [algorithm explanation](03_Engineering_Challenges.md#algorithm-tf-idf-with-cosine-similarity).
 
 
 ### 8. How would you decide between classification and regression?
@@ -199,7 +197,7 @@ The following questions are retained for breadth, definitions, and targeted foll
 
 ### 16. How did you process a 16 GB file with limited RAM?
 
-**Experience answer:** The documented implementation used a Celery pipeline with reusable in-memory/shared LRU caching under memory constraints. The exact parsing and memory-management strategy is not recorded. A concrete [recommended memory and caching design](Project_Reference.md#recommended-design-memory-worker-concurrency-and-invalidation) explains chunked preparation, versioned sparse artifacts, memory-based concurrency, and invalidation. **Design follow-up:** I would assess column selection, data types, chunked aggregation, intermediates, and concurrency. I would not claim that we used chunking or held the entire dataset in RAM without confirmation.
+**Experience answer:** The documented implementation used a Celery pipeline with reusable in-memory/shared LRU caching under memory constraints. The exact parsing and memory-management strategy is not recorded. A concrete [recommended memory and caching design](03_Engineering_Challenges.md#recommended-design-memory-worker-concurrency-and-invalidation) explains chunked preparation, versioned sparse artifacts, memory-based concurrency, and invalidation. **Design follow-up:** I would assess column selection, data types, chunked aggregation, intermediates, and concurrency. I would not claim that we used chunking or held the entire dataset in RAM without confirmation.
 
 ### 17. What does an LRU cache do?
 
@@ -209,7 +207,7 @@ The following questions are retained for breadth, definitions, and targeted foll
 
 **Experience answer:** I used Celery's LRUCache through a custom base task to reuse expensive reference resources within a worker process, as described in my [article](https://merin-rose-tom.medium.com/caching-in-celery-using-lrucache-357053251e96). Independent worker processes do not automatically share this memory.
 
-**Recommended configuration:** Start with one long-lived heavy-comparison process, cache the fitted TF-IDF vectorizer and bounded prepared reference partitions, and reuse them across uploads. Use versioned cache keys and measure peak memory before increasing concurrency. This configuration is the selected design recommendation; exact historical settings remain unverified. [Detailed design](Project_Reference.md#recommended-design-memory-worker-concurrency-and-invalidation).
+**Recommended configuration:** Start with one long-lived heavy-comparison process, cache the fitted TF-IDF vectorizer and bounded prepared reference partitions, and reuse them across uploads. Use versioned cache keys and measure peak memory before increasing concurrency. This configuration is the selected design recommendation; exact historical settings remain unverified. [Detailed design](03_Engineering_Challenges.md#recommended-design-memory-worker-concurrency-and-invalidation).
 
 
 ### 19. Was Redis the dataset cache?
@@ -406,4 +404,4 @@ Sources: [AWS SQS overview](https://docs.aws.amazon.com/AWSSimpleQueueService/la
 - Prepare one genuine failure/debugging story with the change and verification you performed.
 - Keep 50,000+ analysis points, 16 GB+ reporting inputs, and 30-minute repeated loads as distinct metrics.
 
-Sources and evidence boundaries are recorded in the [companion guide](Project_Reference.md#8-sources-and-remaining-confirmations).
+Sources and evidence boundaries are recorded in the [companion guide](01_Project_Overview.md#contributions-and-evidence).
