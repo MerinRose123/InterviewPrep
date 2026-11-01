@@ -51,6 +51,8 @@ Use the shared [practice method](../../README.md#revision-priority). Evidence la
 
 #### A3. Why was Nginx used?
 
+Configuration examples and diagnostics: [Nginx guide](../../Cheatsheets/Nginx.md).
+
 **Mechanism:** A reverse proxy accepts a client request and forwards it to a configured backend. Path-based routing lets the frontend use an entry point while different capabilities run behind it. See [NGINX reverse proxy](https://docs.nginx.com/nginx/admin-guide/web-server/reverse-proxy/).
 
 **Example:** Illustratively, `/api/spaces/` routes to the space capability and `/api/equipment/` to equipment. Angular need not know each backend's internal host and port.

@@ -1,6 +1,6 @@
 # Database Interview Cheat Sheet
 
-Senior-level notes on relational databases, SQL, scaling, Redis, and MongoDB. SQL examples use PostgreSQL syntax unless noted; commands and behavior can differ by database engine.
+Senior-level notes on relational databases, SQL, scaling, Redis, and database-selection tradeoffs. MongoDB implementation details live in the [MongoDB guide](MongoDB_NoSQL.md). SQL examples use PostgreSQL syntax unless noted; commands and behavior can differ by database engine.
 
 ## Contents
 
@@ -12,7 +12,6 @@ Senior-level notes on relational databases, SQL, scaling, Redis, and MongoDB. SQ
 - [Aggregate functions](#aggregate-functions)
 - [SQL window functions](#sql-window-functions)
 - [SQL queries](#sql-queries)
-- [Database backups and recovery](#database-backups-and-recovery)
 - [Stored procedures, functions, and triggers](#stored-procedures-functions-and-triggers)
 - [Locks and concurrency control](#locks-and-concurrency-control)
 - [Indexes and commands](#indexes-and-commands)
@@ -21,8 +20,9 @@ Senior-level notes on relational databases, SQL, scaling, Redis, and MongoDB. SQ
 - [Scaling: vertical, horizontal, and sharding](#scaling-vertical-horizontal-and-sharding)
 - [Database partitioning vs. sharding](#database-partitioning-vs-sharding)
 - [Can joins work across shards?](#can-joins-work-across-shards)
-- [Does Redis use threads?](#does-redis-use-threads)
+- [Redis](#redis)
 - [MongoDB](#mongodb)
+- [Database backups and recovery](#database-backups-and-recovery)
 - [Drawbacks of non-relational databases](#drawbacks-of-non-relational-databases)
 - [Practical SQL scaling and isolation questions](#practical-sql-scaling-and-isolation-questions)
 - [References](#references)
@@ -555,77 +555,13 @@ Sometimes, but it depends on the database and sharding strategy. A join is easie
 
 Design shard keys around important query patterns and colocate data that is frequently joined. Do not assume cross-shard joins are impossible or free; verify the product's support and execution plan.
 
-## Does Redis use threads?
+## Redis
 
-**Short answer:** Redis can use threads, but normal command execution is mostly single-threaded per server process. The event loop handles client requests sequentially; this keeps individual Redis commands atomic, but one slow/blocking command can delay other clients. Redis also uses background threads for selected I/O or persistence work, and supported versions can use I/O threads for socket read/write work. That does not mean arbitrary Redis commands execute in parallel.
-
-| Question | Answer |
-|---|---|
-| Can multiple application threads use Redis? | Yes. Clients can connect concurrently; use the client library's supported connection/pool behavior. |
-| Do Redis commands run in parallel on one instance? | Generally, command execution is serialized on the main thread. |
-| Does Redis use any threads? | Yes, for selected background and I/O work; details depend on version/configuration. |
-| How to scale command throughput? | Keep commands fast, pipeline to reduce network round trips, and use multiple shards/instances when appropriate. |
-| Is one command atomic? | A command executes without another command interleaving on that server. A sequence of commands needs a transaction/script/other coordination when it must be indivisible. |
-
-Redis transactions (`MULTI`/`EXEC`) queue and execute commands together without other clients' commands interleaving, but they do not provide SQL-style rollback of earlier commands when a command has a runtime error. `WATCH` enables optimistic check-and-set workflows. Use Lua/functions for server-side atomic logic when appropriate, and avoid long/blocking commands.
+For Redis threading, atomic commands/transactions, TTL, eviction, persistence, and sharding, see the dedicated [Redis guide](Redis.md).
 
 ## MongoDB
 
-MongoDB is a document database. It stores BSON documents in collections; a document can contain nested objects and arrays. Documents in a collection need not all have identical fields, but applications should still validate and evolve document shape deliberately.
-
-```javascript
-// mongosh: insert and query a document
-db.orders.insertOne({
-  _id: 1001,
-  customerId: 42,
-  status: "paid",
-  items: [{ sku: "A7", quantity: 2, price: 12.50 }],
-  createdAt: new Date()
-});
-
-db.orders.find({ customerId: 42, status: "paid" });
-
-// Index for a common filter/sort pattern
-db.orders.createIndex({ customerId: 1, createdAt: -1 });
-```
-
-### MongoDB data modeling
-
-Choose embedding or references based on how data is read, updated, and grows:
-
-| Pattern | Use when | Tradeoff |
-|---|---|---|
-| Embed related data | Data is read together, bounded in size, and updated together | Duplicated data can become stale; document growth needs limits |
-| Reference another document | Data is shared, large, independently updated, or unbounded | Reads may need extra queries or `$lookup` |
-
-MongoDB guarantees atomicity at the single-document level. Multi-document transactions are available, but add coordination cost; model related updates into one document when that fits the domain and access patterns.
-
-### MongoDB aggregation
-
-Aggregation pipelines pass documents through stages to filter, reshape, group, and calculate results.
-
-```javascript
-db.orders.aggregate([
-  { $match: { status: "paid" } },
-  { $unwind: "$items" },
-  { $group: {
-      _id: "$customerId",
-      itemCount: { $sum: 1 },
-      revenue: { $sum: { $multiply: ["$items.quantity", "$items.price"] } }
-  } },
-  { $sort: { revenue: -1 } }
-]);
-```
-
-### MongoDB replication and sharding
-
-| Feature | Purpose |
-|---|---|
-| Replica set | Multiple copies of the same data for availability and failover; a primary accepts writes and secondaries replicate |
-| Sharding | Partitions data across shards to scale storage and throughput |
-| Index | Speeds matching/sorting for selected query patterns; every extra index costs storage and write work |
-
-Replication improves availability/read options; it is not the same as sharding, which distributes different portions of the dataset. Choose a shard key that distributes writes and supports common queries. A poor key can create hot shards or scatter/gather operations.
+MongoDB is a document database that stores BSON documents in collections. For modeling, validation, queries, aggregation, indexes, transactions, replication, and sharding, use the dedicated [MongoDB guide](MongoDB_NoSQL.md).
 
 ## Database backups and recovery
 

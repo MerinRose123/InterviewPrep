@@ -1,6 +1,6 @@
 # REST and API Design Interview Cheat Sheet
 
-[Study index](README.md) · Related: [authentication](Authentication_Authorization.md), [browser security](Browser_Storage_Security.md), [microservices](Microservices.md).
+[Study index](README.md) · Related: [authentication](Authentication_Authorization.md), [browser security](../Cheatsheets/Frontend_Angular_React.md#browser-storage-and-security), [microservices](Microservices.md).
 
 HTTP syntax is illustrative. Distinguish standardized HTTP behavior from application conventions such as an idempotency-key contract.
 

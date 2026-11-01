@@ -168,6 +168,10 @@ Conceptually, state links an address such as `oci_core_instance.middle_tier["app
 
 Remote state can support team workflows, but encryption, IAM, locking, versioning, and recovery depend on the backend. Do not say “remote” automatically means encrypted or locked. Protect state backups as carefully as the current state. [Sensitive-state guidance](https://developer.hashicorp.com/terraform/plugin/best-practices/sensitive-state)
 
+### Module and state boundaries
+
+Choose boundaries by lifecycle, deployment ownership, permissions, and blast radius rather than resource type alone. One giant state increases contention and recovery scope; many small states add orchestration/dependency overhead. Modules should expose stable, meaningful inputs/outputs, not mechanically mirror every provider argument. Dependent states need scoped discovery, not broad access to sensitive state.
+
 ## 6. Locks and concurrent operations
 
 Where the backend supports it, Terraform locks state for operations that could write it. This prevents cooperating runs from concurrently corrupting or conflicting over the same state. Not every backend supports locking. A lock does not stop an administrator changing OCI directly or another state file managing the same object. [State locking](https://developer.hashicorp.com/terraform/language/state/locking)

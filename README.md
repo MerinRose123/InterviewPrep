@@ -25,14 +25,16 @@ InterviewPrep/
 | [DSA cheatsheet](Cheatsheets/DSA.md) | Algorithm/data-structure revision, patterns, complexity, and examples |
 | [Python cheatsheet](Cheatsheets/Python.md) | Language/runtime behavior, collections, OOP, concurrency, memory, testing, and backend interview questions |
 | [Java cheatsheet](Cheatsheets/Java.md) | JVM, versions, collections, generics, streams, concurrency, memory, profiling, JUnit testing, and senior practical questions |
-| [Frontend cheatsheet](Cheatsheets/Frontend_Angular_React.md) | DOM/tree structure, React Hooks, components, side effects, Promises/async-await, Angular/TypeScript, RxJS, forms, routing, HTML/CSS, accessibility, and practical interview questions |
+| [Frontend cheatsheet](Cheatsheets/Frontend_Angular_React.md) | DOM/tree structure, React Hooks, components, side effects, Promises/async-await, Angular/TypeScript, RxJS, forms, routing, HTML/CSS, browser storage/security, accessibility, and practical interview questions |
 | [OOP cheatsheet](Cheatsheets/OOP.md) | Encapsulation, polymorphism, inheritance/composition, SOLID, patterns, and design exercises |
 
 ## Backend and data
 
 | Content | What it contains |
 |---|---|
-| [Django and Flask cheatsheet](Cheatsheets/Django_Flask.md) | Framework behavior, ORM, migrations/indexing, authentication, APIs, background work, testing, and performance |
+| [Django and Flask cheatsheet](Cheatsheets/Django_Flask.md) | Framework behavior, ORM, migrations/indexing, authentication, APIs, Celery integration links, testing, and performance |
+| [Celery](Cheatsheets/Celery.md) | Task APIs, broker/worker/results, Canvas, retries, acknowledgement, routing, Beat, and operations |
+| [Redis](Cheatsheets/Redis.md) | Data structures, threading, transactions, TTL, eviction, persistence, replication, and sharding |
 | [Spring Boot cheatsheet](Cheatsheets/SpringBoot.md) | Dependency injection, proxies, transactions, JPA, security, reliability, testing, and production diagnosis |
 | [Database cheatsheet](Cheatsheets/Database.md) | SQL, schema design, indexes, transactions/isolation, replication, read replicas, partitioning/sharding, NoSQL, and recovery |
 
@@ -40,6 +42,7 @@ InterviewPrep/
 
 | Content | What it contains |
 |---|---|
+| [Networking fundamentals](System_Design/Networking.md) | DNS, TCP/UDP, TLS, HTTP, CIDR, routing, proxies, latency, and troubleshooting |
 | [System design study index](System_Design/README.md) | 17 architecture guides, technology companion links, suggested study order, and practical design exercises |
 | [Project interview guides](Projects/README.md) | PeopleSoft Cloud Manager, EventOps, and Gordian; architecture, distributed-system failures, scaling, personal contributions, and interview Q&A |
 
@@ -47,13 +50,14 @@ InterviewPrep/
 
 | Guide | What it contains |
 |---|---|
+| [Nginx](Cheatsheets/Nginx.md) | Request routing, proxy_pass paths, headers/TLS, upstreams, streaming, and diagnostics |
 | [Terraform](Cheatsheets/Terraform.md) | Providers, execution, state, locking, drift, and OCI provisioning |
 | [Kafka and messaging](Cheatsheets/Kafka.md) | Brokers, partitions, consumer groups, offsets, ordering, and delivery semantics |
-| [Cloud and Kubernetes](Cheatsheets/Cloud_Kubernetes.md) | Containers, cluster architecture, workloads, probes, autoscaling, and deployment |
-| [AWS networking and security](Cheatsheets/AWS_Networking_Security.md) | VPCs, security groups, NACLs, routes, and connectivity troubleshooting |
+| [Kubernetes](Cheatsheets/Kubernetes.md) | Pods, control plane, workloads, probes, resources, autoscaling, networking, and rollouts |
+| [AWS interview preparation](Cheatsheets/AWS.md) | EC2, S3, IAM, databases, messaging, networking, monitoring, and recovery |
 | [OCI vs. AWS](Cheatsheets/OCI_vs_AWS.md) | Service mappings, cloud tradeoffs, availability, and cost |
 | [Technology comparisons](Cheatsheets/Technology_Comparisons.md) | Responsibilities and differences across backend and cloud tools |
-| [MongoDB](Cheatsheets/MongoDB.md) | Document modeling, queries, indexes, and performance |
+| [MongoDB](Cheatsheets/MongoDB_NoSQL.md) | Document modeling, queries, indexes, and performance |
 
 Cheatsheets covers languages, frameworks, and specific technologies. System_Design covers architecture, scaling, reliability, and cross-system decisions. Projects holds actual project context, contribution stories, and evidence boundaries, with links to the relevant guides.
 

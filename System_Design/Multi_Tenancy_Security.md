@@ -1,6 +1,6 @@
 # Multi-Tenancy and Platform Security Interview Cheat Sheet
 
-[Study index](README.md) · Related: [authentication](Authentication_Authorization.md), [secrets](Cryptography_Passwords_Secrets.md), [cloud](../Cheatsheets/Cloud_Kubernetes.md).
+[Study index](README.md) · Related: [authentication](Authentication_Authorization.md), [secrets](Cryptography_Passwords_Secrets.md), [Kubernetes](../Cheatsheets/Kubernetes.md).
 
 Tenant isolation is an invariant across every storage and execution boundary, not just a WHERE clause in one controller.
 

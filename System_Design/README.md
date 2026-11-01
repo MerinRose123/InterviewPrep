@@ -12,7 +12,8 @@ Use this track before the broader topic map when preparing for senior backend an
 | 2 | [Distributed systems](Distributed_Systems.md) | Consistency, coordination, fencing, partial failure, Saga | [Cloud Manager architecture](../Projects/PeopleSoft/02_Architecture_and_Data_Flow.md) |
 | 3 | [Messaging and Kafka](../Cheatsheets/Kafka.md) | Queue semantics, ordering, duplicates, consumer groups, retries | [EventOps failure scenarios](../Projects/EventOps/04_Scaling_and_Failure_Scenarios.md) |
 | 4 | [REST/API design](REST_API_Design.md) | Idempotency, concurrency, pagination, async job APIs | [EventOps challenges](../Projects/EventOps/03_Engineering_Challenges.md) |
-| 5 | [Caching and performance](Caching_Performance.md) | Cache scope, invalidation, stampedes, bottleneck diagnosis | [Gordian architecture](../Projects/Gordian/02_Architecture_and_Data_Flow.md) |
+| 5 | [Networking](Networking.md) | DNS, TCP/UDP/QUIC, TLS, HTTP, routing, proxies, latency, and troubleshooting |
+| [Caching and performance](Caching_Performance.md) | Cache scope, invalidation, stampedes, bottleneck diagnosis | [Gordian architecture](../Projects/Gordian/02_Architecture_and_Data_Flow.md) |
 | 6 | [Large-data background processing](Large_Data_Background_Processing.md) | Celery, memory limits, task retries, worker scale | [Gordian failures](../Projects/Gordian/04_Scaling_and_Failure_Scenarios.md) |
 | 7 | [Workflow orchestration](Workflow_Orchestration.md) | Durable operations, timeouts, reconciliation, compensation | [Cloud Manager failures](../Projects/PeopleSoft/04_Scaling_and_Failure_Scenarios.md) |
 | 8 | [Observability](Observability.md) | Latency, throughput, error rates, queue age, traces, SLOs | All three projects |
@@ -31,9 +32,9 @@ The general guides explain mechanisms; the project guides explain how to discuss
 
 | Cheatsheet | What to study |
 |---|---|
+| [Networking](Networking.md) | DNS, TCP/UDP/QUIC, TLS, HTTP, routing, proxies, latency, and troubleshooting |
 | [Caching and performance](Caching_Performance.md) | Redis, cache-aside, TTL, eviction, stampede, invalidation, CDN |
 | [Authentication and authorization](Authentication_Authorization.md) | Sessions/JWT, RBAC/ABAC, OAuth 2.0, OIDC, PKCE, refresh/revocation |
-| [Browser storage and security](Browser_Storage_Security.md) | localStorage/sessionStorage/cookies, JWT placement, XSS, CSRF, CORS, BFF |
 | [Cryptography, passwords, and secrets](Cryptography_Passwords_Secrets.md) | Hashing/encryption/signing, password storage, bcrypt/Argon2id, salts/peppers, Shamir, rotation |
 | [Distributed systems](Distributed_Systems.md) | CAP, consistency, quorum, leases/fencing, leader election, 2PC, Saga |
 | [Observability](Observability.md) | Logs/metrics/traces/profiles, SLOs, tail latency, capacity, incident response |
@@ -45,8 +46,8 @@ The general guides explain mechanisms; the project guides explain how to discuss
 | [Design patterns](Design_Patterns.md) | Strategy, factory/builder, adapter/decorator/proxy, observer/state, DI, distributed patterns |
 | [Search systems](Search_Systems.md) | OpenSearch/Elasticsearch, mappings, shards/replicas, synchronization, live reindexing |
 | [Workflow orchestration](Workflow_Orchestration.md) | Durable cloud operations, idempotency, concurrency, recovery, cancellation, versions |
-| [Large data and background processing](Large_Data_Background_Processing.md) | CSV/PDF pipelines, Celery, chunking, acknowledgements, memory, fairness, recovery |
-| [Infrastructure automation](Infrastructure_Automation.md) | Terraform/OpenTofu, state/locking/drift, partial applies, CI/CD, images, cost |
+| [Large data and background processing](Large_Data_Background_Processing.md) | CSV/PDF pipelines, chunking, manifests, memory budgets, progress, cancellation, recovery; Celery mechanics linked separately |
+| [Infrastructure automation](Infrastructure_Automation.md) | Tool ownership, CI/CD stages, artifacts/images, readiness, cleanup, cost; Terraform mechanics linked separately |
 | [RAG and AI agents](RAG_AI_Agents.md) | Ingestion/retrieval, ACLs, tools, prompt injection, evaluation, latency/cost |
 
 ## Technology companions
@@ -56,18 +57,22 @@ Use these for tool behavior and configuration; apply them when working through t
 | Guide | What to study |
 |---|---|
 | [Messaging and Kafka](../Cheatsheets/Kafka.md) | Architecture, partitions, consumer groups, offsets, ordering, retries, DLQ, delivery semantics |
-| [Cloud and Kubernetes](../Cheatsheets/Cloud_Kubernetes.md) | Object storage, containers, architecture, probes, autoscaling, networking, deployment/DR |
-| [AWS networking and security](../Cheatsheets/AWS_Networking_Security.md) | Ingress/egress, security groups vs. NACLs, stateful/stateless rules, VPC routing, NAT, configuration and troubleshooting |
+| [Kubernetes](../Cheatsheets/Kubernetes.md) | Kubernetes architecture, workloads, probes, resources, autoscaling, Services, and rollouts |
+| [AWS interview preparation](../Cheatsheets/AWS.md) | AWS fundamentals, EC2, S3, IAM, databases, messaging, networking, monitoring, and recovery |
 | [OCI vs. AWS](../Cheatsheets/OCI_vs_AWS.md) | Cloud comparison, when to choose each, service mappings, cost, availability, Oracle databases and interview answers |
+| [Frontend browser storage/security](../Cheatsheets/Frontend_Angular_React.md#browser-storage-and-security) | Cookies/storage, JWT placement, XSS/CSRF/CORS, and multi-tab sessions |
+| [Celery](../Cheatsheets/Celery.md) | Task execution, Canvas, retries/acknowledgement, pools, prefetch, scheduling, and framework integration |
+| [Redis](../Cheatsheets/Redis.md) | Commands, TTL/eviction, atomicity, persistence, replication, and cluster behavior |
+| [Nginx](../Cheatsheets/Nginx.md) | Request routing, proxy_pass paths, headers/TLS, upstreams, streaming, and diagnostics |
 | [Terraform](../Cheatsheets/Terraform.md) | Providers, execution, state, locks, drift, OCI provisioning, and recovery |
 | [Technology comparisons](../Cheatsheets/Technology_Comparisons.md) | Roles, alternatives, and boundaries across backend and cloud tools |
-| [MongoDB](../Cheatsheets/MongoDB.md) | Document modeling, queries, indexes, aggregation, and performance |
+| [MongoDB](../Cheatsheets/MongoDB_NoSQL.md) | Document modeling, queries, indexes, aggregation, and performance |
 
 ## Suggested study order
 
-1. **Core API and data:** REST → authentication → browser storage → cryptography → [database design/indexing/isolation](../Cheatsheets/Database.md).
+1. **Core API and data:** [networking](Networking.md) → REST → authentication → browser storage → cryptography → [database design/indexing/isolation](../Cheatsheets/Database.md).
 2. **Scale and failure:** caching → algorithms → messaging/Kafka → distributed systems → microservices.
-3. **Production operation:** cloud/Kubernetes → AWS networking/security → observability → memory profiling → multi-tenancy/security.
+3. **Production operation:** Kubernetes → AWS operations/networking → observability → memory profiling → multi-tenancy/security.
 4. **Resume deep dives:** workflow orchestration → large-data processing → infrastructure automation → search → RAG/agents.
 5. **Design vocabulary:** patterns alongside [OOP/SOLID](../Cheatsheets/OOP.md); revisit them while explaining real projects.
 

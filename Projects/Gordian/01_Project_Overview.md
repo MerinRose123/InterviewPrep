@@ -86,7 +86,7 @@ MongoDB was the sole database used by Gordian. There was no PostgreSQL-backed ap
 
 **Confirmed processing context:** The backend was Flask, PDF generation used WeasyPrint, and data cleaning/analytics supported document similarity scoring. The record-pair schema in the linked MongoDB guide is illustrative, not confirmation of the original score granularity.
 
-General modeling, query, index, and performance exercises are in the [MongoDB guide](../../Cheatsheets/MongoDB.md).
+General modeling, query, index, and performance exercises are in the [MongoDB guide](../../Cheatsheets/MongoDB_NoSQL.md).
 
 ## Sources
 

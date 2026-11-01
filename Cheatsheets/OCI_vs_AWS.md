@@ -1,6 +1,6 @@
 # Oracle Cloud (OCI) vs. AWS: Interview Guide
 
-[Repository guide](../README.md) · [System design connections](../System_Design/README.md) · Related: [cloud and Kubernetes](Cloud_Kubernetes.md), [infrastructure automation](../System_Design/Infrastructure_Automation.md), [PeopleSoft technology comparisons](Technology_Comparisons.md).
+[Repository guide](../README.md) · [System design connections](../System_Design/README.md) · Related: [Kubernetes](Kubernetes.md), [infrastructure automation](../System_Design/Infrastructure_Automation.md), [PeopleSoft technology comparisons](Technology_Comparisons.md).
 
 ## 1. The answer to give first: 60–90 seconds
 
@@ -120,7 +120,7 @@ For either cloud, ask:
 - How are database failover, backups and restore tested?
 - Can the surviving capacity handle traffic, and do dependencies survive too?
 
-Backups support recovery; they do not automatically provide immediate failover. A second region also needs data replication, routing, credentials, capacity and a tested recovery procedure.
+Backups support recovery; they do not automatically provide immediate failover. A second region also needs data replication, routing, credentials, capacity and a tested recovery procedure. Rehearse restoration with compatible infrastructure, databases, objects, keys, DNS, and application versions. Multi-region active-active additionally requires explicit data ownership and conflict-resolution behavior.
 
 ## 9. Which is cheaper or faster?
 

@@ -46,7 +46,7 @@ Gordian was a single-tenant Flask/MongoDB application with Celery reporting and 
 
 ## MongoDB results grow and report listing slows
 
-**Walkthrough:** Identify the real query shape before proposing indexes. Consider a comparison/job identifier plus stable sort fields, bounded result pages, and projection of required fields. Avoid unbounded match arrays in one document. The [MongoDB guide](../../Cheatsheets/MongoDB.md) contains illustrative schemas, not recovered production collections.
+**Walkthrough:** Identify the real query shape before proposing indexes. Consider a comparison/job identifier plus stable sort fields, bounded result pages, and projection of required fields. Avoid unbounded match arrays in one document. The [MongoDB guide](../../Cheatsheets/MongoDB_NoSQL.md) contains illustrative schemas, not recovered production collections.
 
 **Verify:** inspect query execution statistics with representative data, pagination ties, retries, and duplicate writes. Balance query gains against index write/storage costs.
 

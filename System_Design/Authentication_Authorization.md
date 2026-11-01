@@ -1,6 +1,6 @@
 # Authentication and Authorization Interview Cheat Sheet
 
-[Study index](README.md) · Related: [browser storage](Browser_Storage_Security.md), [cryptography](Cryptography_Passwords_Secrets.md), [Spring security](../Cheatsheets/SpringBoot.md).
+[Study index](README.md) · Related: [browser storage](../Cheatsheets/Frontend_Angular_React.md#browser-storage-and-security), [cryptography](Cryptography_Passwords_Secrets.md), [Spring security](../Cheatsheets/SpringBoot.md).
 
 Protocol fragments explain flows; use maintained identity-provider/client libraries rather than building production OAuth or JWT validation from scratch.
 

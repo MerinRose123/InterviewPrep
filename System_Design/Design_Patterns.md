@@ -15,6 +15,7 @@ Choose a pattern to solve an observed design pressure. Examples are Python/Java 
 - [7. Singleton vs. dependency-injected lifecycle?](#7-singleton-vs-dependency-injected-lifecycle)
 - [8. Repository, unit of work, and ports/adapters?](#8-repository-unit-of-work-and-portsadapters)
 - [9. Which distributed patterns should a senior engineer know?](#9-which-distributed-patterns-should-a-senior-engineer-know)
+- [Circuit breaker](#circuit-breaker)
 - [10. How do you answer “Which patterns have you used?”](#10-how-do-you-answer-which-patterns-have-you-used)
 - [References](#references)
 
@@ -188,11 +189,79 @@ A repository exposes domain-oriented persistence operations; a unit of work coor
 |---|---|---|---|
 | Outbox/inbox | DB/event boundary and duplicate effects | Delivery still needs retries/dedup | [Messaging](../Cheatsheets/Kafka.md) |
 | Saga | Multi-service business workflow | Compensation can fail | [Distributed systems](Distributed_Systems.md) |
-| Circuit breaker/bulkhead | Dependency failure and resource isolation | Correct limits and recovery behavior | [Microservices](Microservices.md) |
+| Circuit breaker | Avoid repeated calls to unhealthy dependencies | Failure policy, probe behavior, and state scope | [Circuit breaker](#circuit-breaker) |
+| Bulkhead | Isolate resource usage between workloads | Limits and queues need capacity budgets | [Microservices](Microservices.md#5-timeouts-retries-circuit-breakers-bulkheads) |
 | CQRS | Different read/write needs | Projection lag and operations | [Microservices](Microservices.md) |
 | Strangler migration | Incrementally replace legacy paths | Data ownership during coexistence | [Microservices](Microservices.md) |
 | Cache-aside | Reuse expensive reads | Stale data and stampedes | [Caching](Caching_Performance.md) |
 | Reconciliation loop | Recover desired vs. actual state | Concurrent/stale controllers | [Workflows](Workflow_Orchestration.md) |
+
+## Circuit breaker
+
+A Circuit Breaker is a resilience design pattern: it temporarily rejects calls to an unhealthy dependency, then probes whether calls can resume. It is commonly discussed as an architectural/distributed-systems pattern rather than one of the original Gang of Four object-design patterns.
+
+### States and recovery
+
+| State | Behavior | Transition |
+|---|---|---|
+| Closed | Allow calls and observe relevant failures | Open when the configured failure policy is met |
+| Open | Reject calls quickly without calling the dependency | After a recovery interval, allow limited probes |
+| Half-open | Admit a limited trial workload | Close on the configured success condition; reopen on failure |
+
+```mermaid
+stateDiagram-v2
+    [*] --> Closed
+    Closed --> Open: Failure threshold reached
+    Open --> HalfOpen: Recovery interval elapsed
+    HalfOpen --> Closed: Recovery probes succeed
+    HalfOpen --> Open: Recovery probe fails
+```
+
+**Example:** a failing payment provider causes requests to occupy resources until timeout. The breaker stops repeated attempts and returns an explicit unavailable/pending outcome. It must not turn a failed payment into a fabricated success. Half-open probes prevent immediately flooding a recovering dependency.
+
+### Circuit breaker vs. related controls
+
+| Control | Responsibility |
+|---|---|
+| Circuit breaker | Stop repeated calls to a dependency judged unhealthy |
+| Timeout | Bound how long an attempt waits |
+| Retry | Repeat a classified transient failure within a budget |
+| Bulkhead | Limit resource sharing and isolate failure impact |
+| Rate limiter | Bound admission over time |
+
+Use these together where required. A breaker cannot replace an I/O timeout or a concurrency bound. Retry/breaker wrapper order affects what gets counted; do not retry an open-circuit rejection in a tight loop. Thresholds, failure classification, probe count, and state scope depend on the implementation. [Circuit Breaker pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker).
+
+### Python implementation example
+
+Requires `pybreaker`; `payment_client` is an application collaborator. The values below are illustrative, not universal production settings.
+
+```python
+import pybreaker
+
+# Keep one breaker per dependency, shared across requests in this process.
+payment_breaker = pybreaker.CircuitBreaker(
+    fail_max=3,       # open after 3 consecutive failures
+    reset_timeout=30  # after 30 seconds, allow a trial call
+)
+
+@payment_breaker
+def charge_payment(payment_id):
+    return payment_client.charge(payment_id, timeout=2)
+
+try:
+    charge_payment("pay-123")
+except pybreaker.CircuitBreakerError:
+    # The breaker is open; return a fallback or report the service unavailable.
+    print("Payments are temporarily unavailable")
+```
+
+Count only failures that indicate a dependency problem. For example, a bad customer request should usually not open a breaker. `pybreaker` supports excluded exception types. Always set a timeout on the underlying network/database call too; a breaker cannot help while a call hangs forever. A normal in-memory breaker is local to one process. `pybreaker` can use Redis storage when several processes need to share breaker state. Its async support is for Tornado; don't assume the decorator works directly with `asyncio` coroutines.
+
+### What should you test and monitor?
+
+Verify opening after the relevant failure policy, fast rejection while open, bounded half-open probes, recovery, business-error exclusion, and behavior under concurrent calls. Track state transitions, rejected calls, dependency latency/errors, and fallback outcomes. An in-process breaker is not automatically shared by every service replica.
+
+Library API and optional shared-state support: [PyBreaker documentation](https://github.com/danielfm/pybreaker).
 
 ## 10. How do you answer “Which patterns have you used?”
 

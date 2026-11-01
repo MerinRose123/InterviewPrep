@@ -82,6 +82,8 @@ Use stable operation identity for retryable side effects.
 | Bulkhead | Isolate resource usage | Queues still need bounds |
 | Rate limiter | Bound admission over time | Not identical to in-flight concurrency control |
 
+For the state diagram and implementation example, see [Circuit Breaker](Design_Patterns.md#circuit-breaker).
+
 **Dig deeper:** which layer retries? If a DB is saturated, more replicas/retries can worsen it. Does a fallback return stale but acceptable data or fabricate financial success?
 
 ## 6. How do you handle data consistency and events?

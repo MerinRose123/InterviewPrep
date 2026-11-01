@@ -31,13 +31,21 @@ Kafka retains records according to topic policy rather than deleting each record
 
 ## 2. Explain Kafka architecture and a record's path
 
-```text
-Producer --metadata lookup--> broker cluster
-Producer --key/partition routing--> partition leader --> follower replicas
-Consumer group --assigned partitions--> fetch records --> business processing
-Consumer --> commit next offsets to group coordination infrastructure
-KRaft controller quorum --> manages cluster metadata/controller leadership
+```mermaid
+flowchart LR
+    P[Producer] -->|Write partition P0| L
+    subgraph Brokers["Brokers: data plane - one example partition"]
+        L["Broker A: P0 leader"] -->|Replicate log| F1["Broker B: P0 follower"]
+        L -->|Replicate log| F2["Broker C: P0 follower"]
+    end
+    L -->|Fetch response| C[Consumer]
+    C -->|Fetch request| L
+    C -->|Commit next offset| G[Group coordinator]
+    K["KRaft controller quorum"] -.->|Cluster metadata and leadership| Brokers
 ```
+
+The picture shows one partition replicated across three brokers. A topic can have several partitions with leaders on different brokers. Controller nodes and broker nodes are logical roles; the diagram does not prescribe whether roles share processes. Application records flow through partition leaders, not through the controller quorum.
+
 
 A broker stores partition logs; each partition has a leader and replica set. Controllers manage metadata and leadership, not every application record. KRaft is the modern metadata mode; historical ZooKeeper diagrams are not the architecture to assume for Kafka 4.x.
 
@@ -51,6 +59,28 @@ A broker stores partition logs; each partition has a leader and replica set. Con
 | More partitions | More storage/consumer parallelism | Metadata, rebalance, ordering migration, and per-partition overhead |
 | More consumers in one classic group | Share partitions | Consumers beyond partition count are idle for that topic assignment |
 | Separate groups | Independent processing/replay | Each group creates additional read/processing load |
+
+```mermaid
+flowchart LR
+    subgraph Topic["Topic: two logical partition logs"]
+        P0[Partition 0]
+        P1[Partition 1]
+    end
+    subgraph Billing["Billing consumer group"]
+        B0[Billing worker A]
+        B1[Billing worker B]
+        B2["Extra worker: idle for this assignment"]
+    end
+    subgraph Analytics["Analytics consumer group"]
+        A0[Analytics worker]
+    end
+    P0 -->|Read by assigned consumer| B0
+    P1 -->|Read by assigned consumer| B1
+    P0 -->|Independent read position| A0
+    P1 -->|Independent read position| A0
+```
+
+Within a classic group, a partition is assigned to one consumer at a time. Different groups read the same retained records independently. Arrows show record flow in response to consumer fetches, not broker push delivery.
 
 Ordering is within a partition, not globally across a topic. The selected partitioner and partition count determine placement; adding partitions can move a key's future records to a different partition and affect continuity assumptions.
 
@@ -97,6 +127,25 @@ process 10 successfully
 process 11 fails; 12 may not safely advance progress past 11
 safe committed next offset for P = 11
 ```
+
+```mermaid
+sequenceDiagram
+    participant K as Partition log
+    participant C as Consumer
+    participant DB as Business database
+    C->>K: Fetch offset 10
+    K-->>C: Event with stable event ID
+    C->>DB: Transaction: dedup receipt and business update
+    DB-->>C: Commit succeeds
+    Note over C: Crash before offset commit
+    C->>K: Restart from last committed position
+    K-->>C: Same event is read again
+    C->>DB: Check receipt in transaction
+    DB-->>C: Already applied: no duplicate business effect
+    C->>K: Commit next offset 11 through group coordinator
+```
+
+This illustrates the SQL deduplication pattern in section 5; it is not Kafka automatically making a SQL transaction exactly-once.
 
 With parallel workers, maintain the contiguous completed prefix per partition. Committing past unfinished earlier records can skip work after a crash. Rebalances require careful ownership, cancellation/draining, and safe offset handling. [Consumer configuration](https://kafka.apache.org/41/configuration/consumer-configs/).
 

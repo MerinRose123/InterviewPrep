@@ -4,6 +4,12 @@
 
 This general guide uses an illustrative single-tenant document-comparison application. Schemas, indexes, and queries are practice designs, not recovered production details. For confirmed Gordian context and experience limits, see the [project evidence](../Projects/Gordian/01_Project_Overview.md#mongodb-experience-and-example-boundaries).
 
+## MongoDB basics
+
+MongoDB stores BSON documents in collections. Documents can contain nested objects and arrays; flexible shape still requires deliberate validation and evolution.
+
+**Atomicity:** a single-document write is atomic. Multi-document transactions are available but add coordination cost. Embed bounded data read/updated together when that fits the access pattern; reference shared, independently queried, or unbounded relationships. References do not automatically enforce foreign keys. Detailed modeling examples follow below.
+
 ## 1. Why MongoDB? Why not PostgreSQL?
 
 **Interview answer:** “A document model can fit records with varying attributes and nested comparison outputs. I would choose it when the main reads retrieve those structures together. MongoDB is not automatically faster, and PostgreSQL can also handle JSON. The choice depends on access patterns, constraints, and operational needs.”
@@ -254,3 +260,13 @@ This is a design for immutable completed comparison results. If scores change wh
 ## 9. Why MongoDB rather than Amazon SQS?
 
 These solve different requirements: MongoDB stores queryable analysis records; SQS delivers messages to processing workers. In a possible architecture, file storage holds the upload, SQS carries its file/job ID, and a worker writes analysis results to MongoDB. SQS could replace the Redis broker role after evaluating Celery transport requirements; it does not replace MongoDB queries and aggregations. See the [comparison and interview answer](../Projects/Gordian/05_Interview_QA.md#mongodb-versus-amazon-sqs). This is an architectural comparison, not a claim that Gordian used SQS.
+
+## Replication and sharding
+
+| Feature | Purpose |
+|---|---|
+| Replica set | Multiple copies of the same data for availability and failover; a primary accepts writes and secondaries replicate |
+| Sharding | Partitions data across shards to scale storage and throughput |
+| Index | Speeds matching/sorting for selected query patterns; every extra index costs storage and write work |
+
+Replication improves availability/read options; it is not the same as sharding, which distributes different portions of the dataset. Choose a shard key that distributes writes and supports common queries. A poor key can create hot shards or scatter/gather operations.

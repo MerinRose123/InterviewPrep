@@ -1,6 +1,6 @@
 # Gordian — Engineering challenges
 
-[Project guide](01_Project_Overview.md) · [Interview Q&A](05_Interview_QA.md) · [MongoDB deep dive](../../Cheatsheets/MongoDB.md)
+[Project guide](01_Project_Overview.md) · [Interview Q&A](05_Interview_QA.md) · [MongoDB deep dive](../../Cheatsheets/MongoDB_NoSQL.md)
 
 ## Interview opening (90 seconds)
 

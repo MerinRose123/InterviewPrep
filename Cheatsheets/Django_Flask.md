@@ -4,21 +4,21 @@ Code-first notes for common Django, Django REST Framework, Flask, and FastAPI in
 
 ## Contents
 
-- [Django, Flask, and FastAPI comparison](#django-flask-and-fastapi)
-- [Django MVT request flow](#django-mvt-architecture)
+- [Django, Flask, and FastAPI](#django-flask-and-fastapi)
+- [Django MVT architecture](#django-mvt-architecture)
 - [WSGI vs. ASGI](#wsgi-vs-asgi)
 - [Django ORM: models, `get`, and `filter`](#django-orm-models-get-and-filter)
-- [Django pagination](#django-pagination)
 - [Advanced Django ORM queries](#advanced-django-orm-queries)
-- [Django database migrations](#django-database-migrations)
 - [Django indexing: practical interview questions](#django-indexing-practical-interview-questions)
+- [Django database migrations](#django-database-migrations)
+- [Django pagination](#django-pagination)
 - [SQL joins and Django relationships](#sql-joins-and-django-relationships)
 - [N+1 queries, `select_related`, and `prefetch_related`](#n1-queries-select_related-and-prefetch_related)
-- [CSRF and SQL injection protection](#csrf-and-sql-injection-protection-in-django)
+- [CSRF and SQL injection protection in Django](#csrf-and-sql-injection-protection-in-django)
 - [Django transactions and race conditions](#django-transactions-and-race-conditions)
 - [Django authentication and permissions](#django-authentication-and-permissions)
 - [Role-based access control in Django APIs](#role-based-access-control-in-django-apis)
-- [Django middleware and custom middleware](#django-middleware)
+- [Django middleware](#django-middleware)
 - [Django signals](#django-signals)
 - [Django admin](#django-admin)
 - [Django caching](#django-caching)
@@ -29,13 +29,7 @@ Code-first notes for common Django, Django REST Framework, Flask, and FastAPI in
 - [Flask application factory](#flask-application-factory)
 - [Flask request lifecycle and hooks](#flask-request-lifecycle-and-hooks)
 - [Flask application context vs. request context](#flask-application-context-vs-request-context)
-- [Celery architecture](#celery-architecture)
-- [Celery task workflows](#celery-task-workflows)
-- [Celery retries and reliability](#celery-retries-and-reliability)
-- [Handling failed Celery tasks](#handling-failed-celery-tasks)
-- [Celery routing and worker concurrency](#celery-routing-and-worker-concurrency)
-- [Celery scheduled work](#celery-scheduled-work)
-- [Celery operations](#celery-operations)
+- [Celery integration](#celery-integration)
 - [References](#references)
 
 ## Django, Flask, and FastAPI
@@ -919,152 +913,9 @@ with app.app_context():
 
 In a test, use `app.test_request_context()` when code needs a request object without running the full server. Do not pass Flask's `request` proxy to a different thread; that worker has its own context.
 
-## Celery architecture
+## Celery integration
 
-Celery runs work outside the web request process. The application publishes a task message to a **broker**; a **worker** consumes and executes it. An optional **result backend** stores task state/results. Celery Beat publishes scheduled task messages to the broker.
-
-```mermaid
-flowchart LR
-    A[Web app / producer] -->|task message| B[(Broker / queue)]
-    B --> C[Celery worker]
-    C -->|optional status/result| D[(Result backend)]
-    E[Celery Beat] -->|scheduled task message| B
-```
-
-```python
-from celery import Celery
-
-app = Celery("shop", broker="redis://localhost:6379/0", backend="redis://localhost:6379/1")
-
-@app.task
-def send_receipt(order_id):
-    ...
-
-send_receipt.delay(123)  # enqueue; a worker executes it
-```
-
-The broker transports jobs; the result backend stores task state. They solve different problems, and a result backend is optional when callers do not need task results.
-
-## Celery task workflows
-
-Celery Canvas composes tasks into workflows using signatures. A signature captures a task and its arguments; `.s()` creates a signature whose result can be passed to the next task.
-
-```python
-from celery import chain, chord, group
-from shop.tasks import charge_order, create_invoice, email_invoice, resize_image
-
-# Sequential: result of charge_order is passed to create_invoice
-checkout = chain(charge_order.s(order_id), create_invoice.s())
-checkout.delay()
-
-# Parallel: enqueue one resize task per image
-group(resize_image.s(image_id) for image_id in image_ids).delay()
-
-# Parallel header, then callback receives the list of header results
-header = group(resize_image.s(image_id) for image_id in image_ids)
-workflow = chord(header, email_invoice.s(order_id))
-workflow.delay()
-```
-
-| Primitive | What it does | Example use |
-|---|---|---|
-| `chain` | Runs tasks in order; passes each result forward | Charge, then create invoice, then notify |
-| `group` | Runs signatures in parallel | Process many independent images |
-| `chord` | Runs a group, then calls a callback with the results | Wait for all report parts, then combine them |
-
-Chords need a result backend that supports them, and header tasks generally must store results. Plan for partial failure and callback retries; make every side effect idempotent. Use immutable signatures (`.si()`) when a task should not receive the previous task's result.
-
-## Celery retries and reliability
-
-Tasks can fail after partially doing work, and brokers may redeliver messages. Design tasks to be **idempotent**: repeating the same task should not create duplicate charges, emails, or records. Use a stable operation key or a uniqueness constraint where needed.
-
-```python
-@app.task(bind=True, autoretry_for=(TimeoutError,), retry_backoff=True, retry_kwargs={"max_retries": 5})
-def sync_customer(self, customer_id):
-    call_remote_service(customer_id)
-```
-
-| Setting / idea | Meaning |
-|---|---|
-| Automatic retry | Retry configured exception types, with delay/backoff and a retry limit |
-| Early acknowledgement (default behavior) | Message is acknowledged before task completion; a worker crash may lose in-progress work |
-| `acks_late=True` | Acknowledge after task returns; can cause redelivery, so task must be idempotent |
-| `transaction.on_commit()` | Enqueue only once the database transaction commits |
-
-Retries provide repeated attempts, not exactly-once side effects. Use timeouts, bounded retries, idempotency, and dead-letter or failure handling appropriate to the broker.
-
-## Handling failed Celery tasks
-
-When a task raises an exception, Celery records it as `FAILURE` if a result backend is configured and logs the error. A normal task exception is not automatically retried. With the usual early acknowledgement behavior, the broker message has already been acknowledged, so it is not automatically put back on the queue. Use explicit retry rules for temporary errors and handle permanent errors separately.
-
-| Situation | Typical behavior | What to do |
-|---|---|---|
-| Temporary failure, such as a timeout or rate limit | Task fails unless configured to retry | Retry with a limit and backoff; honor `Retry-After` when available |
-| Permanent failure, such as invalid input | Retrying will likely fail again | Validate early, record the failure, and alert or send to a dead-letter/manual review path |
-| Task raises while using late acknowledgement | By default, Celery still acknowledges failed/timed-out tasks | Use retry for transient errors; changing `task_acks_on_failure_or_timeout` changes this behavior |
-| Worker process is lost during a task | With late ack, worker-loss requeue depends on `task_reject_on_worker_lost` and broker | Consider requeue only for idempotent tasks; repeated crashes can create a message loop |
-| Task succeeds remotely but worker crashes before acknowledgement | Task may run again if redelivered | Make side effects idempotent or protect them with an idempotency key |
-
-```python
-import requests
-from celery import shared_task
-
-@shared_task(bind=True, max_retries=5)
-def sync_customer(self, customer_id):
-    try:
-        response = requests.get(customer_url(customer_id), timeout=5)
-        response.raise_for_status()
-    except (requests.Timeout, requests.ConnectionError) as exc:
-        raise self.retry(exc=exc, countdown=min(2 ** self.request.retries, 60))
-    # Validate and process the successful response here.
-```
-
-In production, combine bounded retries with backoff, jitter for large fleets, timeouts, structured logs containing the task ID, monitoring, and a way to inspect/replay terminal failures. Avoid infinite retry loops and do not retry every exception indiscriminately. A result backend helps inspect task state, but it is not a durable business-failure queue by itself.
-
-## Celery routing and worker concurrency
-
-Route tasks to queues based on their workload so a long-running export does not block short email or API tasks. Workers can listen to specific queues; scale or tune them separately.
-
-```python
-# celery config
-task_routes = {"shop.tasks.export_report": {"queue": "exports"}}
-```
-
-```sh
-celery -A shop worker -Q exports -l INFO --concurrency=2
-```
-
-| Pool / setting | Typical fit | Tradeoff |
-|---|---|---|
-| Prefork processes | CPU-heavy or general synchronous tasks | Process memory overhead |
-| Threads | I/O-heavy tasks using blocking libraries | Python CPU work still limited by the GIL in standard CPython |
-| Eventlet/gevent | Cooperative I/O with compatible libraries | Requires compatible code and monkey-patching considerations |
-| Concurrency | Number of execution slots | Too high can exhaust memory, database connections, or remote service limits |
-
-Measure task duration and resource use, set sensible prefetch behavior, and give slow and fast tasks separate queues when needed.
-
-## Celery scheduled work
-
-Celery Beat is a scheduler that sends due task messages to the broker; workers execute those tasks. Run one active scheduler for a schedule unless using a scheduler with coordination, or periodic jobs may be enqueued more than once.
-
-```python
-from celery.schedules import crontab
-
-app.conf.beat_schedule = {
-    "expire-old-carts-daily": {
-        "task": "shop.tasks.expire_old_carts",
-        "schedule": crontab(hour=2, minute=0),
-    },
-}
-```
-
-Scheduled tasks can overlap if one run takes longer than the interval. Make them idempotent and use a lock or other coordination if overlapping runs are unsafe.
-
-## Celery operations
-
-Production operations include monitoring queue depth and task age, task success/failure and retry rates, worker health, runtime, memory, and broker/backend availability. Alert on growing queues and stuck or repeatedly failing tasks.
-
-Set timeouts for network calls, use soft/hard task time limits where appropriate, expire unneeded result records, and shut workers down gracefully so active work can finish. Keep task arguments small and avoid sending secrets or large objects through the broker; pass identifiers and load current data in the worker.
+Celery runs background work outside a Django/Flask request. For architecture, task APIs, workflows, retries, worker settings, Beat, and framework setup, use the dedicated [Celery guide](Celery.md).
 
 ## References
 
@@ -1104,13 +955,6 @@ Set timeouts for network calls, use soft/hard task time limits where appropriate
 - [Flask application context](https://flask.palletsprojects.com/en/stable/appcontext/)
 - [Flask request context](https://flask.palletsprojects.com/en/stable/reqcontext/)
 - [FastAPI documentation](https://fastapi.tiangolo.com/)
-- [Celery tasks, retries, and acknowledgements](https://docs.celeryq.dev/en/stable/userguide/tasks.html)
-- [Celery Canvas workflows](https://docs.celeryq.dev/en/stable/userguide/canvas.html)
-- [Celery acknowledgement and worker-loss settings](https://docs.celeryq.dev/en/stable/userguide/configuration.html#task-acks-late)
-- [Celery workers](https://docs.celeryq.dev/en/stable/userguide/workers.html)
-- [Celery routing](https://docs.celeryq.dev/en/stable/userguide/routing.html)
-- [Celery periodic tasks](https://docs.celeryq.dev/en/stable/userguide/periodic-tasks.html)
-- [Celery monitoring](https://docs.celeryq.dev/en/stable/userguide/monitoring.html)
 - [Django deployment checklist](https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/)
 - [Django static-file deployment](https://docs.djangoproject.com/en/6.1/howto/static-files/deployment/)
 - [Django model indexes](https://docs.djangoproject.com/en/6.1/ref/models/indexes/)

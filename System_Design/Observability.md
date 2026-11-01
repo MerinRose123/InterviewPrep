@@ -1,6 +1,6 @@
 # Observability and Production Diagnosis Interview Cheat Sheet
 
-[Study index](README.md) · Related: [memory profiling](Memory_Profiling_Performance.md), [cloud](../Cheatsheets/Cloud_Kubernetes.md), [messaging](../Cheatsheets/Kafka.md).
+[Study index](README.md) · Related: [memory profiling](Memory_Profiling_Performance.md), [Kubernetes](../Cheatsheets/Kubernetes.md), [messaging](../Cheatsheets/Kafka.md).
 
 Observability helps infer internal behavior from evidence. Begin with user impact and a hypothesis; a dashboard full of numbers is not an incident explanation.
 

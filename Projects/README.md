@@ -17,7 +17,7 @@ Prioritize **architecture, service boundaries, scale, distributed correctness, f
 ## Project references and general study links
 
 - PeopleSoft: [Runtime architecture and distributed systems](PeopleSoft/Runtime_Architecture.md), [Terraform](../Cheatsheets/Terraform.md), [technology comparisons](../Cheatsheets/Technology_Comparisons.md), [real debugging story](PeopleSoft/Debugging_Stories.md).
-- Gordian: [MongoDB interview deep dive](../Cheatsheets/MongoDB.md).
+- Gordian: [MongoDB interview deep dive](../Cheatsheets/MongoDB_NoSQL.md).
 - PeopleSoft deeper references: [Cloud Manager orchestration](PeopleSoft/Cloud_Manager.md) and [runtime architecture](PeopleSoft/Runtime_Architecture.md). The numbered guides are the entry points; use these references for implementation depth.
 
 ## System-design connections

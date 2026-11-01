@@ -383,6 +383,8 @@ Configure a provider and expiry/size policy explicitly. Proxy interception appli
 
 ### 18. How do retries, timeouts, circuit breakers, and bulkheads differ?
 
+See the shared [Circuit Breaker pattern](../System_Design/Design_Patterns.md#circuit-breaker) for state transitions and recovery behavior.
+
 | Mechanism | Solves | Does not solve |
 |---|---|---|
 | Timeout | Bounds an attempt's waiting | Proof that remote work did not happen |

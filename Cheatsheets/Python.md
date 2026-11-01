@@ -757,43 +757,7 @@ async def command():
 
 ## 12. Circuit breaker
 
-### What problem does a circuit breaker solve?
-
-It stops repeated calls to a failing service so that service can recover and your application can fail fast. It is not a retry mechanism. `pybreaker` provides a ready-made circuit breaker:
-
-```bash
-pip install pybreaker
-```
-
-```python
-import pybreaker
-
-# Keep one breaker per dependency, shared across requests in this process.
-payment_breaker = pybreaker.CircuitBreaker(
-    fail_max=3,       # open after 3 consecutive failures
-    reset_timeout=30  # after 30 seconds, allow a trial call
-)
-
-@payment_breaker
-def charge_payment(payment_id):
-    return payment_client.charge(payment_id, timeout=2)
-
-try:
-    charge_payment("pay-123")
-except pybreaker.CircuitBreakerError:
-    # The breaker is open; return a fallback or report the service unavailable.
-    print("Payments are temporarily unavailable")
-```
-
-The breaker starts **closed** and lets calls through. After enough failures it becomes **open** and rejects calls quickly. After the reset timeout it allows a trial call (**half-open**): success closes it; failure opens it again. The decorator should wrap the call to the dependency. Keep the breaker instance around across requests; creating it inside the function would reset its failure count every call.
-
-| State | What it does | Next step |
-|---|---|---|
-| Closed | Allows calls and counts failures | Opens after the failure threshold |
-| Open | Rejects calls quickly | Waits for the reset timeout |
-| Half-open | Allows a trial call | Closes on success; opens again on failure |
-
-Count only failures that indicate a dependency problem. For example, a bad customer request should usually not open a breaker. `pybreaker` supports excluded exception types. Always set a timeout on the underlying network/database call too; a breaker cannot help while a call hangs forever. A normal in-memory breaker is local to one process. `pybreaker` can use Redis storage when several processes need to share breaker state. Its async support is for Tornado; don't assume the decorator works directly with `asyncio` coroutines.
+Circuit Breaker is a resilience pattern, not a Python language feature. Its states, failure/recovery behavior, and the Python `pybreaker` example live in [Design Patterns](../System_Design/Design_Patterns.md#circuit-breaker).
 
 ## 13. Metaclasses and the diamond problem
 
