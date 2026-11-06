@@ -50,6 +50,7 @@ InterviewPrep/
 
 | Guide | What it contains |
 |---|---|
+| [Linux and Bash](Cheatsheets/Linux.md) | Slow-process investigations, CPU/memory/disk diagnosis, processes/signals, logs, networking, shell scripting, cron, and practical interview exercises |
 | [Nginx](Cheatsheets/Nginx.md) | Request routing, proxy_pass paths, headers/TLS, upstreams, streaming, and diagnostics |
 | [Terraform](Cheatsheets/Terraform.md) | Providers, execution, state, locking, drift, and OCI provisioning |
 | [Kafka and messaging](Cheatsheets/Kafka.md) | Brokers, partitions, consumer groups, offsets, ordering, and delivery semantics |

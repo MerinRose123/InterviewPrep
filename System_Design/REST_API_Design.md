@@ -9,6 +9,8 @@ HTTP syntax is illustrative. Distinguish standardized HTTP behavior from applica
 - [1. What makes an API RESTful, and how do you model resources?](#1-what-makes-an-api-restful-and-how-do-you-model-resources)
 - [2. GET vs. POST vs. PUT vs. PATCH vs. DELETE?](#2-get-vs-post-vs-put-vs-patch-vs-delete)
 - [3. Which status code should you return?](#3-which-status-code-should-you-return)
+  - [5xx status-code map](#5xx-status-code-map)
+  - [Interview scenario: an API returns 503 — what do you do?](#interview-scenario-an-api-returns-503--what-do-you-do)
 - [4. How do you implement idempotency and concurrent updates?](#4-how-do-you-implement-idempotency-and-concurrent-updates)
   - [Interview example: create an order safely on retry](#interview-example-create-an-order-safely-on-retry)
 - [5. Offset vs. cursor pagination?](#5-offset-vs-cursor-pagination)
@@ -60,6 +62,7 @@ Idempotence means repeating the request has the same intended effect, not identi
 | 409 | Conflict with current resource state |
 | 412 | Conditional request precondition failed |
 | 429 | Rate limit; provide useful retry guidance |
+| 500 | Unexpected server-side condition prevented completion |
 | 502 / 503 / 504 | Upstream gateway failure / unavailable service / gateway timeout |
 
 Do not return HTTP 200 for every error. Keep machine-readable error categories stable and avoid exposing stack traces or secrets.
@@ -74,6 +77,87 @@ Content-Type: application/problem+json
 ```
 
 [Problem Details](https://www.rfc-editor.org/rfc/rfc9457.html) supplies a standard error representation; your domain extension fields still need a contract.
+
+### 5xx status-code map
+
+5xx identifies server-side errors, but the response can originate from an application, proxy, load balancer, or another intermediary. The code alone does not identify the failed component or prove whether a write took effect.
+
+| Code | Meaning | Example / first investigation |
+|---|---|---|
+| **500 Internal Server Error** | Unexpected condition prevented fulfillment | Application exception or unhandled failure: correlate request ID with logs/traces, inspect recent changes and dependency failures |
+| **501 Not Implemented** | Server lacks functionality required to fulfill the request | Unsupported functionality/method implementation: verify server capability; repeating the same request usually will not help. A known method disallowed on this resource is generally **405**, not 501 |
+| **502 Bad Gateway** | Gateway/proxy received an invalid upstream response | Investigate proxy logs, backend protocol, TLS, connection resets, and upstream health; product mappings vary |
+| **503 Service Unavailable** | Service temporarily cannot handle the request, such as overload or maintenance | Check which layer returned it, healthy targets/readiness, capacity, maintenance, and dependencies; may include `Retry-After` |
+| **504 Gateway Timeout** | Gateway/proxy did not get an upstream response in time | Trace upstream latency, queues, DB queries, network, and timeout budgets; the upstream might still complete |
+| **505 HTTP Version Not Supported** | Server does not support/refuses the request's major HTTP version | Verify client/proxy protocol support and negotiation |
+| 506 Variant Also Negotiates | Content negotiation configuration creates a negotiation loop | Rare; inspect variant/negotiation configuration |
+| 507 Insufficient Storage | Insufficient storage to complete the operation; defined by WebDAV | Inspect capacity/quota and the API's storage semantics; ordinary disk-full errors are not universally mapped to 507 |
+| 508 Loop Detected | Server detected an infinite loop while processing a WebDAV request | Rare; inspect recursive resource/binding traversal |
+| 510 Not Extended | Legacy extension-related code, now marked obsolete | Recognize if encountered; not a normal API design choice |
+| 511 Network Authentication Required | Network access requires authentication | Usually an intercepting network/captive portal, not ordinary API login; API authentication uses 401/403 as appropriate |
+
+Prioritize **500, 502, 503, 504** for interviews. **429 Too Many Requests** usually communicates request-rate limiting; **503** communicates temporary service unavailability. They can both carry retry guidance, but a client should not treat them as identical causes. Vendor codes such as 520–524 and 499 are not general standardized HTTP status codes; consult the emitting product's documentation.
+
+Definitions: [HTTP Semantics, server errors](https://www.rfc-editor.org/rfc/rfc9110.html#section-15.6), [IANA status registry](https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml), [429 and 511](https://www.rfc-editor.org/rfc/rfc6585.html). Troubleshooting examples are hypotheses to verify, not causes guaranteed by each code.
+
+### Interview scenario: an API returns 503 — what do you do?
+
+**Spoken answer:** “503 means the service is temporarily unable to handle the request. I first establish the impact and identify whether the response came from the gateway, load balancer, or application. I correlate the request with logs and traces, check healthy backends, readiness, capacity, recent deployments, and dependency health. I mitigate the confirmed cause, then verify successful requests and recovery metrics. On the client, I honor Retry-After and use bounded retries with backoff and jitter only when the operation is safe to retry.”
+
+#### If you are the client or API consumer
+
+1. Record status, time, endpoint, request/correlation ID, and relevant headers without exposing credentials. Determine whether one endpoint or the entire service is affected.
+2. Inspect `Retry-After`. It can be a delay in seconds or an HTTP date. It is optional, not a promise that recovery will occur at that instant.
+3. Retry only within an overall deadline and attempt/retry budget. Use exponential backoff with jitter; do not create a retry storm or let every layer retry independently.
+4. Check retry safety. GET is normally safe to retry; a POST/payment/job submission needs an explicit idempotency contract or a way to reconcile its outcome. A failed response does not guarantee that no work committed.
+5. If retries are exhausted, show a useful temporary-unavailability message or expose pending/unknown operation state. Use approved fallback/circuit breaking where appropriate; do not report an unknown write as definitely failed.
+
+```http
+HTTP/1.1 503 Service Unavailable
+Retry-After: 30
+Content-Type: application/problem+json
+
+{"type":"https://api.example.com/problems/temporarily-unavailable",
+ "title":"Service temporarily unavailable","status":503,
+ "detail":"Please retry after the indicated delay."}
+```
+
+Here `30` means a suggested 30-second delay, not 30 immediate attempts. If that exceeds the client's remaining deadline, stop rather than retrying immediately. [Retry-After semantics](https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3).
+
+#### If you own the server or deployment
+
+| Step | What to check | What it establishes |
+|---|---|---|
+| Scope impact | Endpoint, tenant, region, instance, error rate, start time, recent deploy | Local fault versus broad outage; correlation with changes |
+| Locate emitter | Gateway/LB access and error logs, application logs, distributed trace | Which component generated the status; headers are clues, not proof |
+| Check serving targets | Healthy backend count, readiness, service process, listening ports, routing | Whether traffic has an eligible destination; running is not the same as ready |
+| Check capacity | CPU, memory/OOM, disk, descriptors, threads, connection pools, queue depth | Which resource or limit is constraining service |
+| Check dependencies | DB health/locks/pool, DNS, TLS, downstream timeouts, network/firewall | Whether a healthy-looking app is unavailable due to another layer |
+| Mitigate from evidence | Roll back a bad release, restore healthy routing, shed load, repair dependency, add suitable capacity | Addresses the confirmed failure rather than blindly restarting |
+| Verify recovery | Requests through the actual client path, readiness, 5xx rate, latency, saturation/backlog | Recovery is real and sustained; backlog/retry traffic is under control |
+
+Illustrative read-only checks; replace service names, addresses, and ports. Use an authorized health endpoint, not a business mutation:
+
+```bash
+curl -sS -D - -o /dev/null --connect-timeout 3 --max-time 10 https://api.example.com/health
+systemctl status myapp --no-pager
+journalctl -u myapp --since '15 minutes ago' --no-pager
+ss -ltnp
+# From an authorized backend host; match expected scheme, port, Host/SNI as needed:
+curl -sS -D - -o /dev/null --max-time 5 http://127.0.0.1:8080/health
+```
+
+Default curl can exit successfully even when the HTTP status is 503; inspect the status. A direct-backend success with gateway failure narrows the investigation but may use a different route, identity, or request than the failing traffic. For resource diagnosis, follow the [Linux slow-process investigation](../Cheatsheets/Linux.md#1-a-process-is-taking-too-long-investigation).
+
+**Example:** immediately after a deployment, every request gets 503 and the load balancer has zero healthy targets. Investigate readiness failures, target registration, health-check path/port, startup logs, and deployment changes. Restore a healthy version or fix the confirmed configuration; increasing the HTTP timeout does not create a healthy backend. The exact status emitted for zero healthy targets depends on the proxy/load-balancer product.
+
+**Common follow-ups:**
+
+- **“Should you restart?”** Only with evidence and an understood impact. Capture diagnostics first where feasible; a restart can temporarily hide a leak, drop work, or amplify an outage.
+- **“Should you increase the timeout?”** Only if the operation legitimately needs that budget and capacity supports it. Longer waits can worsen pool/queue exhaustion.
+- **“Should you scale out?”** If application capacity is the bottleneck and downstream systems can support it. More instances can worsen an overloaded database.
+- **“Does 503 mean the machine is down?”** No. A live component returned HTTP; the backend may be unavailable, deliberately rejecting work, or in maintenance. Other outages yield connection errors/timeouts with no HTTP response.
+- **“503 versus 504?”** Temporary inability to serve versus a gateway waiting too long for an upstream response. Neither status alone proves the root cause or write outcome.
 
 ## 4. How do you implement idempotency and concurrent updates?
 
