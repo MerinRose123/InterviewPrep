@@ -4,6 +4,7 @@ Interviewers often ask you to write code, then ask what happens when it fails or
 
 ## Contents
 
+- [Why Python is called interpreted](#why-is-python-called-an-interpreted-language)
 - [Context managers](#1-context-managers)
 - [Dataclasses](#2-dataclasses)
 - [Instance, class, and static methods](#3-instance-class-and-static-methods)
@@ -35,11 +36,27 @@ Interviewers often ask you to write code, then ask what happens when it fails or
   - [Shallow vs. deep copy](#what-is-the-difference-between-shallow-and-deep-copy)
   - [`==` vs. `is`](#what-is-the-difference-between--and-is)
 - [Comprehensions and functional tools](#16-comprehensions-lambda-map-filter-and-reduce)
+  - [Why Python supports functional programming](#why-is-python-called-a-functional-programming-language)
 - [Exception handling and custom exceptions](#17-exception-handling-and-custom-exceptions)
 - [Mocking in unit tests](#18-mocking-in-unit-tests)
 - [HTTP requests with `requests`](#19-http-requests-with-requests)
 - [Senior-level follow-up prompts](#20-senior-level-follow-up-prompts)
+- [Regular expressions (regex)](#21-regular-expressions-regex)
 - [References](#references)
+
+## Why is Python called an interpreted language?
+
+Python is commonly called interpreted because programs run through a Python interpreter without requiring a separate, user-managed compilation step to create a native executable.
+
+In **CPython**, the usual execution path is:
+
+**Source code (`.py`) → compilation to bytecode → execution by the Python virtual machine.**
+
+Imported modules may have their bytecode cached in `.pyc` files under `__pycache__`. This cache can avoid recompilation; it is not a standalone machine-code executable.
+
+**Interview answer:** “Python is called interpreted because an interpreter executes the program at runtime. In CPython, source code is first compiled into bytecode, which the Python virtual machine executes.”
+
+**Common trap:** Interpreted does not mean “no compilation” or “executing source text one line at a time.” This execution model describes CPython; other Python implementations can use different strategies.
 
 ## 1. Context managers
 
@@ -989,6 +1006,27 @@ Use `is None` to check for `None`. Do not use `is` to compare strings or numbers
 
 ## 16. Comprehensions, lambda, map, filter, and reduce
 
+### Why is Python called a functional programming language?
+
+The precise answer is that **Python supports functional programming but is a multi-paradigm language**: it also supports procedural and object-oriented programming.
+
+Functions are **first-class objects**: you can assign them to variables, pass them as arguments, and return them from other functions. A **higher-order function** accepts a function or returns one. Python also supports lambdas, closures, and tools such as `map`, `filter`, and `functools.reduce`.
+
+```python
+def square(number):
+    return number * number
+
+def apply(func, value):
+    return func(value)
+
+operation = square           # Assign a function to a variable.
+print(apply(operation, 5))   # 25: pass it to a higher-order function.
+```
+
+Functional style favors pure functions (results depend only on inputs, with no side effects) and avoiding mutation. Python allows that style but does not enforce it: mutable objects and side effects are permitted. Using `def` alone does not make a program functional.
+
+**Interview answer:** “Python supports functional programming because functions are first-class objects, and it supports higher-order functions, lambdas, and closures. It is not purely functional; it also supports mutable state, side effects, and object-oriented programming.”
+
 ### Comprehensions
 
 A comprehension builds a list, set, or dictionary from an iterable. It is often the clearest way to express a simple transform or filter.
@@ -1203,6 +1241,73 @@ For each topic, expect a question about correctness at scale:
 10. How do timeout, output buffering, child termination, and untrusted arguments affect subprocess safety?
 11. Why can `__del__` be unreliable, and what deterministic alternative would you use?
 12. How does the MRO behave in the exact diamond hierarchy shown, and what if one class omits `super()`?
+
+## 21. Regular expressions (regex)
+
+### What is regex, and when should you use it?
+
+A regular expression describes a text pattern. Python's built-in `re` module supports searching, extracting, validating, replacing, and splitting text. Use it for structured text patterns such as identifiers or log fields; use a proper parser for structured formats such as JSON or HTML.
+
+### Common syntax
+
+| Pattern | Meaning |
+|---|---|
+| `[abc]`, `[a-z]` | One character from a set or range |
+| `[^abc]` | One character outside the set |
+| `\d`, `\w`, `\s` | Decimal digit; word character (including underscore); whitespace. Unicode-aware for string patterns by default |
+| `.` | Any character except newline by default |
+| `*`, `+`, `?` | Repeat the preceding item zero or more, one or more, or zero or one times |
+| `{m,n}` | Repeat between m and n times |
+| `^`, `$` | Start and end anchors; `$` can also match before a final newline |
+| `(…)`, `(?:…)` | Capturing group; non-capturing group |
+| `a\|b` | Either alternative |
+| `\b` | Word boundary |
+| `.*?` | Lazy repetition: try the shortest match first |
+
+Use raw strings such as `r"\bcat\b"` so Python preserves backslashes for the regex engine. Raw strings do not disable regex escaping: `r"\."` still means a literal dot. Use `[0-9]` when you specifically require ASCII digits.
+
+### Which Python functions should I know?
+
+| Function | Purpose |
+|---|---|
+| `re.search(pattern, text)` | First match anywhere |
+| `re.match(pattern, text)` | Match only at the beginning |
+| `re.fullmatch(pattern, text)` | Require the entire string to match; useful for validation |
+| `re.findall(pattern, text)` | List matches; capturing groups change the returned values |
+| `re.finditer(pattern, text)` | Iterator of match objects, with groups and positions |
+| `re.sub(pattern, replacement, text)` | Replace matches |
+| `re.split(pattern, text)` | Split on a pattern |
+| `re.compile(pattern)` | Create a reusable pattern object |
+
+```python
+import re
+
+log = "order=123 status=OK order=456"
+order_pattern = re.compile(r"\border=(?P<id>[0-9]+)\b")
+
+for match in order_pattern.finditer(log):
+    print(match.group("id"))  # 123, then 456
+
+print(re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{2,19}", "merin_1") is not None)
+# True: 3–20 characters, starts with an ASCII letter.
+print(re.sub(r"\s+", " ", "hello   world"))  # hello world
+```
+
+`search`, `match`, and `fullmatch` return a match object or `None`; check before accessing `.group()`. Common flags include `re.IGNORECASE`, `re.MULTILINE` (changes `^`/`$`), and `re.DOTALL` (lets `.` match newline).
+
+### Why can regex be faster? Is it always faster?
+
+**Interview answer:** “In CPython, regex patterns compile into instructions executed by a matching engine written in C. For pattern matching, that can avoid the overhead of a character-by-character Python loop. However, regex is not always faster: simple string methods can be faster, compilation has a cost, and backtracking can make some patterns very slow. I would benchmark equivalent operations on representative inputs.”
+
+Prefer `"error" in text`, `text.startswith("ERROR")`, or `text.replace("old", "new")` for simple literal operations. These also use optimized native implementations in CPython. For repeated pattern matching, reuse `re.compile(...)`; module-level `re` functions also cache recent patterns, so explicit compilation does not guarantee a large speedup. `finditer` avoids building a list of every match when results can be processed incrementally.
+
+### What is catastrophic backtracking?
+
+A backtracking engine can try many alternative ways to match a pattern. Ambiguous nested repetitions, such as `(a+)+`, can take exponentially many attempts on certain failing inputs. Do not benchmark that pattern on large inputs. Prefer an unambiguous equivalent, such as `re.fullmatch(r"a+", text)` for this case, and limit input size when processing untrusted text. Lazy quantifiers do not automatically prevent backtracking.
+
+**Senior follow-ups:** Does validation reject trailing junk and newlines? Should digits be ASCII or Unicode? What happens on a long near-match? If inserting user text as a literal into a pattern, did you use `re.escape()`?
+
+Sources: [Python Regular Expression HOWTO](https://docs.python.org/3/howto/regex.html), [`re` module reference](https://docs.python.org/3/library/re.html).
 
 ## References
 
