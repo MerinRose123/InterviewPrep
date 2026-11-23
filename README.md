@@ -14,8 +14,14 @@ InterviewPrep/
 │   ├── EventOps/
 │   ├── PeopleSoft/
 │   └── Gordian/
+├── Questions/         — technical and behavioural interview practice
 └── References/        — supporting technical reference documents
 ```
+
+## Scenario practice
+
+- [Technical interview questions](Questions/Questions.md) cover backend APIs, data and SQL, Python, AWS, and fraud detection.
+- [Behavioural interview questions](Questions/Behavioural.md) cover ownership, judgement, collaboration, leadership, and communication.
 
 ## Languages and fundamentals
 
