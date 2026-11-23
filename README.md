@@ -21,6 +21,7 @@ InterviewPrep/
 ## Scenario practice
 
 - [Technical interview questions](Questions/Questions.md) cover backend APIs, data and SQL, Python, AWS, and fraud detection.
+- [System design interview questions](Questions/System_Design_Questions.md) cover chatbots, food delivery, centralized logging, and notifications.
 - [Behavioural interview questions](Questions/Behavioural.md) cover ownership, judgement, collaboration, leadership, and communication.
 
 ## Languages and fundamentals

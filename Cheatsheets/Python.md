@@ -4,47 +4,47 @@ Interviewers often ask you to write code, then ask what happens when it fails or
 
 ## Contents
 
-- [Why Python is called interpreted](#why-is-python-called-an-interpreted-language)
-- [Context managers](#1-context-managers)
-- [Dataclasses](#2-dataclasses)
-- [Instance, class, and static methods](#3-instance-class-and-static-methods)
-- [Properties, getters, setters, and deleters](#4-properties-getters-setters-and-deleters)
-- [Access modifiers and encapsulation](#access-modifiers-and-encapsulation-in-python)
-- [Decorators](#5-decorators)
-- [Generators, iterators, and coroutines](#6-generators-iterators-and-coroutines)
+- [Why Python is called interpreted](#1-why-is-python-called-an-interpreted-language)
+- [Context managers](#2-context-managers)
+- [Dataclasses](#3-dataclasses)
+- [Instance, class, and static methods](#4-instance-class-and-static-methods)
+- [Properties, getters, setters, and deleters](#5-properties-getters-setters-and-deleters)
+- [Access modifiers and encapsulation](#6-access-modifiers-and-encapsulation-in-python)
+- [Decorators](#7-decorators)
+- [Generators, iterators, and coroutines](#8-generators-iterators-and-coroutines)
   - [Generators](#generator)
   - [Creating an iterator](#what-is-an-iterator-and-how-do-you-create-one)
   - [Coroutines and async code](#coroutines-and-async-code)
   - [Normal function vs coroutine](#what-is-a-coroutine-and-how-is-it-different-from-a-normal-function)
-- [Futures](#7-futures)
-- [Threads, processes, and asyncio](#8-threads-and-processes)
+- [Futures](#9-futures)
+- [Threads, processes, and asyncio](#10-threads-and-processes)
   - [When to use each concurrency option](#when-should-i-use-asyncio-threads-or-processes)
   - [Interview: concurrent API aggregator (pseudocode)](#interview-concurrent-api-aggregator-pseudocode)
-- [Heap, stack, and Python memory](#9-heap-stack-and-python-memory)
-- [Garbage collection and memory leaks](#10-garbage-collection-and-memory-leaks)
+- [Heap, stack, and Python memory](#11-heap-stack-and-python-memory)
+- [Garbage collection and memory leaks](#12-garbage-collection-and-memory-leaks)
   - [Reference counting and garbage collection](#how-does-garbage-collection-work-in-cpython)
   - [Finding memory leaks](#how-do-you-diagnose-a-memory-leak)
-- [Subprocesses](#11-subprocesses)
-- [Circuit breaker](#12-circuit-breaker)
-- [Metaclasses, `__new__`/`__init__`, and the diamond problem](#13-metaclasses-and-the-diamond-problem)
-- [Dictionaries and collections](#14-dictionaries-and-collections)
+- [Subprocesses](#13-subprocesses)
+- [Circuit breaker](#14-circuit-breaker)
+- [Metaclasses, `__new__`/`__init__`, and the diamond problem](#15-metaclasses-and-the-diamond-problem)
+- [Dictionaries and collections](#16-dictionaries-and-collections)
   - [How dictionaries work internally](#how-does-a-dict-work-internally)
   - [Collection comparison](#how-do-lists-tuples-sets-dictionaries-and-deques-compare)
-- [Argument passing, reference counting, copying, and identity](#15-argument-passing-reference-counting-copying-and-identity)
+- [Argument passing, reference counting, copying, and identity](#17-argument-passing-reference-counting-copying-and-identity)
   - [Argument passing](#is-python-pass-by-value-or-pass-by-reference)
   - [Reference counting](#what-is-reference-counting-and-how-does-it-connect-to-garbage-collection)
   - [Shallow vs. deep copy](#what-is-the-difference-between-shallow-and-deep-copy)
   - [`==` vs. `is`](#what-is-the-difference-between--and-is)
-- [Comprehensions and functional tools](#16-comprehensions-lambda-map-filter-and-reduce)
+- [Comprehensions and functional tools](#18-comprehensions-lambda-map-filter-and-reduce)
   - [Why Python supports functional programming](#why-is-python-called-a-functional-programming-language)
-- [Exception handling and custom exceptions](#17-exception-handling-and-custom-exceptions)
-- [Mocking in unit tests](#18-mocking-in-unit-tests)
-- [HTTP requests with `requests`](#19-http-requests-with-requests)
-- [Senior-level follow-up prompts](#20-senior-level-follow-up-prompts)
-- [Regular expressions (regex)](#21-regular-expressions-regex)
+- [Exception handling and custom exceptions](#19-exception-handling-and-custom-exceptions)
+- [Mocking in unit tests](#20-mocking-in-unit-tests)
+- [HTTP requests with `requests`](#21-http-requests-with-requests)
+- [Senior-level follow-up prompts](#22-senior-level-follow-up-prompts)
+- [Regular expressions (regex)](#23-regular-expressions-regex)
 - [References](#references)
 
-## Why is Python called an interpreted language?
+## 1. Why is Python called an interpreted language?
 
 Python is commonly called interpreted because programs run through a Python interpreter without requiring a separate, user-managed compilation step to create a native executable.
 
@@ -58,7 +58,7 @@ Imported modules may have their bytecode cached in `.pyc` files under `__pycache
 
 **Common trap:** Interpreted does not mean “no compilation” or “executing source text one line at a time.” This execution model describes CPython; other Python implementations can use different strategies.
 
-## 1. Context managers
+## 2. Context managers
 
 ### What is a context manager?
 
@@ -94,7 +94,7 @@ The `finally` block runs when the `with` block ends, including when it raises an
 
 **Senior follow-ups:** What if setup partially succeeds and then fails? Can cleanup itself fail? Who owns the resource? If several resources are opened, are they all closed if a later open fails? Use `contextlib.ExitStack` when the number of resources is dynamic. Never rely on garbage collection to close an important resource.
 
-## 2. Dataclasses
+## 3. Dataclasses
 
 ### What problem does `dataclass` solve?
 
@@ -120,7 +120,7 @@ Use `default_factory` for mutable defaults; `labels=[]` would share one list acr
 
 **Equality/hash details:** by default, dataclasses compare fields. Frozen dataclasses can be hashable depending on options and field hashability. Do not make mutable value objects hashable if mutations can change equality or hash behavior. For keyword-only construction, consider `kw_only=True` where supported. Use explicit validation in `__post_init__` or a parsing layer for untrusted data.
 
-## 3. Instance, class, and static methods
+## 4. Instance, class, and static methods
 
 ```python
 class Temperature:
@@ -158,7 +158,7 @@ All three can be called through a class; instance methods need an explicit insta
 | Class method | `cls` | Alternate constructors or behavior shared by the class |
 | Static method | None added automatically | Utility related to the class but independent of its state |
 
-## 4. Properties, getters, setters, and deleters
+## 5. Properties, getters, setters, and deleters
 
 Python commonly exposes managed attributes with `property` instead of Java-style `get_x()` / `set_x()` methods. A property is a data descriptor: attribute access invokes its getter/setter/deleter methods.
 
@@ -219,7 +219,7 @@ del p.price
 
 `__get__`, `__set__`, and `__delete__` form the descriptor protocol. Defining `__set__` or `__delete__` makes it a data descriptor, which takes precedence over an instance-dictionary entry. `__set_name__` receives the declared attribute name when the owner class is created.
 
-## Access modifiers and encapsulation in Python
+## 6. Access modifiers and encapsulation in Python
 
 ### How do you add public, protected, and private access modifiers in Python?
 
@@ -297,7 +297,7 @@ emp.salary = 60_000
 
 **30-second response:** “Python uses naming conventions instead of strict access-modifier keywords. Public names have no prefix, a single underscore signals an internal or protected-by-convention member, and two leading underscores trigger class-name mangling. None of these enforce Java-like private access. For controlled reads and writes, I use properties.”
 
-## 5. Decorators
+## 7. Decorators
 
 ### What is a decorator?
 
@@ -347,7 +347,7 @@ def retry(attempts):
 
 **Senior-level concerns:** define which exceptions are retried, include backoff/deadlines, preserve signatures/metadata, consider decorator order, and make sure sync decorators are not incorrectly applied to async functions. Caching or authorization decorators must use correct keys and must not create security bypasses. Decorators execute at import/definition time, so avoid expensive or stateful setup there.
 
-## 6. Generators, iterators, and coroutines
+## 8. Generators, iterators, and coroutines
 
 ### Generator
 
@@ -440,7 +440,7 @@ An `await` does not always suspend: an already-ready awaitable may complete imme
 
 ### Coroutines and async code
 
-Calling an `async def` function creates a coroutine object. It does not execute to completion by itself. The event loop schedules it; `await` suspends it until the awaited operation can make progress.
+Calling an ordinary `def` function starts executing its body immediately. Calling an `async def` coroutine function creates a coroutine object without running its body. Execution starts when you await the coroutine or schedule it as a task. It can suspend at an `await` when the awaited operation needs to wait.
 
 ```python
 import asyncio
@@ -460,6 +460,12 @@ async def main(client, urls):
 ```
 
 `asyncio.run()` owns and closes an event loop and normally belongs at the program boundary; do not call it inside an already-running event loop (for example many notebook/web contexts). `asyncio.gather` schedules awaitables concurrently, but does not make CPU-bound Python work parallel. Bound concurrency for large input sets rather than creating millions of tasks at once.
+
+#### How a coroutine keeps its state in CPython
+
+When a coroutine suspends, its execution frame retains its local variables, the bytecode position needed to resume, and any intermediate values on its evaluation stack. The event loop can run another task while the coroutine is suspended. When the awaited operation is ready, execution resumes from the saved position with the same local variables. For example, if `attempt = 2` precedes `await client.get(url)`, `attempt` is still `2` when the coroutine resumes.
+
+In CPython 3.11 and later, the coroutine object owns an internal `_PyInterpreterFrame` that stores this execution state. Accessing `coro.cr_frame` exposes a Python frame object (`PyFrameObject` in C), which CPython can create on demand. While the coroutine is suspended, `coro.cr_frame.f_locals` lets you inspect its locals and `coro.cr_frame.f_lasti` gives its last bytecode instruction offset. Once the coroutine is closed, `coro.cr_frame` is `None`.
 
 ### Generator vs coroutine
 
@@ -483,7 +489,7 @@ async def use_resource(resource):
         await resource.close()
 ```
 
-## 7. Futures
+## 9. Futures
 
 ### What is a Future?
 
@@ -518,7 +524,7 @@ async def lookup_async(pool, key):
 
 A timeout while waiting does not necessarily stop the underlying thread operation. Use a timeout supported by the client itself and ensure work has a cancellation/termination policy. Do not call blocking `.result()` on the event-loop thread for a future whose completion depends on that same loop.
 
-## 8. Threads and processes
+## 10. Threads and processes
 
 ### Thread syntax and shared state
 
@@ -664,7 +670,7 @@ For a known user-service “user not found” response, map to 404 if the API co
 
 **Follow-up:** this version waits for all three bounded results before checking user failure. For fail-fast behavior, observe the user task first while the other tasks are already running; if it fails, cancel and await the remaining tasks.
 
-## 9. Heap, stack, and Python memory
+## 11. Heap, stack, and Python memory
 
 ### Is a Python variable stored on the stack or heap?
 
@@ -686,7 +692,7 @@ In Python interviews, explain object references and lifetimes, then clarify whic
 | Python object heap | Objects such as lists, dicts, and class instances | While references keep them alive |
 | Process memory | Memory the operating system gives the process | Until released by the process/runtime or process exit |
 
-## 10. Garbage collection and memory leaks
+## 12. Garbage collection and memory leaks
 
 ### How does garbage collection work in CPython?
 
@@ -734,7 +740,7 @@ for stat in after.compare_to(before, "lineno")[:10]:
 
 Do not “fix” a leak by calling `gc.collect()` on every request. Find the reference or buffer that makes objects live, and bound caches/queues by size, time, or ownership scope.
 
-## 11. Subprocesses
+## 13. Subprocesses
 
 ### How do you run an external command safely?
 
@@ -772,11 +778,11 @@ async def command():
     return stdout.decode()
 ```
 
-## 12. Circuit breaker
+## 14. Circuit breaker
 
 Circuit Breaker is a resilience pattern, not a Python language feature. Its states, failure/recovery behavior, and the Python `pybreaker` example live in [Design Patterns](../System_Design/Design_Patterns.md#circuit-breaker).
 
-## 13. Metaclasses and the diamond problem
+## 15. Metaclasses and the diamond problem
 
 **Priority:** constructors and method resolution are core; metaclass internals are optional depth unless the role requires framework internals.
 
@@ -862,7 +868,7 @@ Child()
 
 Use compatible cooperative signatures (often keyword arguments) and call `super()` once at each level. If a class calls `Root.__init__(self)` directly, it bypasses the MRO chain and can duplicate or skip initialization. `super()` means “next in this object's MRO,” not “my direct parent.”
 
-## 14. Dictionaries and collections
+## 16. Dictionaries and collections
 
 ### How does a `dict` work internally?
 
@@ -909,7 +915,7 @@ next_item = queue.popleft()
 
 List indexing is O(1); adding or removing near the front is O(n). Set and dict membership are O(1) on average (O(n) in the worst case). Deques are efficient at both ends; use a list for fast indexing in the middle. A tuple's immutability is shallow: it can still contain a mutable list.
 
-## 15. Argument passing, reference counting, copying, and identity
+## 17. Argument passing, reference counting, copying, and identity
 
 ### Is Python pass-by-value or pass-by-reference?
 
@@ -1004,7 +1010,7 @@ print(first is second)  # False: different list objects
 
 Use `is None` to check for `None`. Do not use `is` to compare strings or numbers: Python may reuse some objects as an optimization, but that is not a value-comparison guarantee.
 
-## 16. Comprehensions, lambda, map, filter, and reduce
+## 18. Comprehensions, lambda, map, filter, and reduce
 
 ### Why is Python called a functional programming language?
 
@@ -1076,7 +1082,7 @@ print(product)  # 24
 
 The final `1` is the starting value. For totals, use the clearer built-in `sum(numbers)`. For most other operations, a loop or named function is easier to debug than `reduce`.
 
-## 17. Exception handling and custom exceptions
+## 19. Exception handling and custom exceptions
 
 ### How do `try`, `except`, `else`, and `finally` work?
 
@@ -1134,7 +1140,7 @@ except DatabaseError as error:
 
 Inside an `except` block, bare `raise` re-raises the same exception with its traceback. `raise error` can change the traceback location. Avoid returning from `finally`, because it can hide a return value or exception from the earlier code.
 
-## 18. Mocking in unit tests
+## 20. Mocking in unit tests
 
 ### What is mocking?
 
@@ -1182,7 +1188,7 @@ def test_load_profile():
 
 Patch the name where the code under test looks it up, not necessarily where the dependency was originally defined. Mock behavior that matters to the test, such as a return value or failure; avoid asserting every internal call. Too many mocks can make tests pass even when real components do not work together, so keep integration tests for important boundaries.
 
-## 19. HTTP requests with `requests`
+## 21. HTTP requests with `requests`
 
 `requests` is a popular third-party library for making synchronous HTTP calls. It is not part of Python's standard library.
 
@@ -1225,7 +1231,7 @@ with requests.Session() as session:
     response.raise_for_status()
 ```
 
-## 20. Senior-level follow-up prompts
+## 22. Senior-level follow-up prompts
 
 For each topic, expect a question about correctness at scale:
 
@@ -1242,7 +1248,7 @@ For each topic, expect a question about correctness at scale:
 11. Why can `__del__` be unreliable, and what deterministic alternative would you use?
 12. How does the MRO behave in the exact diamond hierarchy shown, and what if one class omits `super()`?
 
-## 21. Regular expressions (regex)
+## 23. Regular expressions (regex)
 
 ### What is regex, and when should you use it?
 
