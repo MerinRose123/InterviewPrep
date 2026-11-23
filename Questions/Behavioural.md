@@ -1,43 +1,37 @@
 # Behavioural Interview Questions
 
-Use the STAR structure (Situation, Task, Action, Result). Keep the setup brief, spend most of the answer on your decisions and actions, and close with an outcome you can support. The sample answers below are hypothetical. Replace the details with your own experience and use metrics only when you can explain how they were measured.
+## 1. Tell me about a feature or project you built from scratch. How did you design the architecture, what tradeoffs did you make, and how did you handle edge cases?
 
-## Ownership and judgement
+**Starting point.** “On EventOps, I worked on scheduling that took participant availability into account. The feature needed to account for availability when users scheduled an event.”
 
-### 1. Tell me about a production incident you owned.
+Build out the answer with the part you owned, the data and request flow, where the availability check ran, and what happened when a booking was saved. Explain one design decision you actually made and the alternative you considered. For example, checking availability at submission improves freshness but adds work to the request. If requests can overlap, explain how you handled a slot becoming unavailable between the check and the save. Prepare to discuss missing availability and time-zone boundaries if they applied. Close with how you tested the behaviour and what you observed after rollout.
 
-**Sample answer.** “A batch job failed after a release and delayed a report used by operations. I took ownership of recovery, paused retries while we checked for partial writes, and asked a teammate to trace the failing input while I verified the last successful checkpoint. I gave operations a recovery update and replayed only the affected batch once we confirmed it was safe. We reconciled the report totals before handing it back. I then added a preflight validation check for the failure we’d missed.”
+[EventOps contributions](../Projects/EventOps/01_Project_Overview.md#my-contributions) · [EventOps engineering challenges](../Projects/EventOps/03_Engineering_Challenges.md)
 
-### 2. Tell me about a mistake you made and what you learned.
+## 2. Tell me about a disagreement you had with a manager or teammate. How did you handle it, and what was the outcome?
 
-**Sample answer.** “I underestimated how long a data migration would hold locks because I tested it on a small dataset. When I saw write latency rise, I paused the rollout and explained the impact to the team. I rehearsed a batched backfill on representative data and set a threshold that would pause it if latency rose again. The migration completed within that limit, and we added a data-volume check to our release process.”
+**Answer structure.** “We disagreed about [specific decision]. I favoured [your approach] because [reason], while my manager or teammate was concerned about [their reason]. I asked what constraint mattered most, and we compared the options against [shared goal or evidence]. We decided to [decision]. I supported the decision by [your action], and the result was [observed outcome].”
 
-### 3. Describe a time you made a difficult tradeoff under a deadline.
+Choose a real disagreement, even if the team ultimately chose the other approach. Explain what you did to move the decision forward and how you worked with the person afterwards.
 
-**Sample answer.** “We had to meet a launch date, but the planned reporting feature required a schema change we hadn’t tested at production volume. I proposed shipping the core workflow and using an existing export for the first reporting cycle. I agreed on the temporary process with operations and documented when we’d retire it. We met the launch date and rolled out the reporting change after verifying it on representative data.”
+## 3. Tell me about a production issue you encountered. How did you handle it?
 
-## Collaboration and leadership
+**Answer structure.** Start with the production symptom and who was affected. Explain what you did first to contain the impact, how you communicated progress, and which evidence identified the cause. Describe your role in the fix, how you verified recovery, and what you changed to prevent recurrence.
 
-### 4. Tell me about a technical disagreement with a teammate.
+**Related release example.** “During the Cloud Manager 16 release, installation failed even though the OCI CLI version was pinned. A newer release of a related dependency caused the failure. We resolved it by prepackaging the CLI with its dependencies so deployment used a controlled dependency set.” This is a documented release failure. If the interviewer asks specifically for a live production incident, prepare an example with confirmed production impact.
 
-**Sample answer.** “A teammate proposed a new service to isolate report generation. I was concerned about the deployment and on-call overhead. We agreed on what mattered most: queue isolation, ownership, and recovery after a worker failure. I prototyped dedicated workers in the existing application while my teammate mapped the service boundaries. We chose the worker approach for the release and agreed on when we’d revisit the decision.”
+[Cloud Manager debugging stories](../Projects/PeopleSoft/Debugging_Stories.md)
 
-### 5. Tell me about a time you influenced a decision without authority.
+## 4. When you encounter a bug, how do you troubleshoot it?
 
-**Sample answer.** “Several teams were shipping API changes independently, and consumers were finding compatibility issues after deployment. I used one incident to show where a contract test would have caught the break, then added an example to our CI pipeline. I asked a consuming team to help choose the first contract to test. Once the check was easy to adopt, other teams copied it for their endpoints.”
+**Sample answer.** “I first clarify the expected behaviour and establish the scope. I capture a failing input, the environment, and a request or job ID, then compare a failing case with a successful one. I follow the request through logs, traces, and relevant data, and check recent code, configuration, and data changes. I test one hypothesis at a time. If I can’t reproduce it locally, I look for a difference in the data, environment, or timing and add targeted instrumentation if needed.
 
-### 6. Describe a time you helped a teammate develop a skill.
+“For a live issue, I contain the impact while investigating. Once I isolate the cause, I reproduce it in a regression test where feasible, make the smallest fix that addresses it, and verify the original failure and nearby edge cases. After deployment, I check that errors stay down and the affected workflow behaves correctly.”
 
-**Sample answer.** “A teammate wanted to get better at diagnosing slow queries. I paired with them on a real report and asked them to predict which part of the plan was expensive before we checked the row counts. They proposed an index and measured the before-and-after performance. On the next report, they led the investigation and walked the team through the tradeoffs.”
+## 5. Tell me about a time you mentored a teammate or led a feature. How did you help others succeed, and what was the outcome?
 
-## Communication and ambiguity
+**Feature leadership starting point.** “On EventOps, I improved the pytest setup and expanded coverage in important areas from about 40% to 70%. I used mocking to test behaviour that depended on external collaborators.” If you led this work, explain how you chose the first areas to cover, coordinated contributions, and helped teammates use the setup. Close with the coverage gain and any team outcome you can verify.
 
-### 7. Tell me about a time you handled unclear requirements.
+**Mentoring answer structure.** Describe what your teammate wanted to learn, how you adapted your support, and when you handed the work back. Close with something they could do independently afterwards.
 
-**Sample answer.** “A stakeholder asked for faster reports, but the request didn’t specify which report mattered or how fresh the data had to be. I watched the operations team run their morning workflow and learned that one summary was blocking the rest of their work. We agreed on a latency and freshness target for that report. I tested a precomputed summary and demonstrated both the faster load time and when the data refreshed.”
-
-### 8. Tell me about difficult feedback you received and acted on.
-
-**Sample answer.** “My manager told me that my incident updates were technically accurate but hard for support to act on. I asked support what they needed and changed my updates to lead with customer impact, the current workaround, and when to expect another update. I kept detailed diagnosis in the incident channel. In the next incident, support could brief customers without waiting for a separate explanation.”
-
-Use the [project interview guides](../Projects/README.md) to find real examples you can adapt. For each story, prepare a follow-up on what you personally did, why you chose that approach, and what you’d change next time.
+[EventOps contributions](../Projects/EventOps/01_Project_Overview.md#my-contributions)

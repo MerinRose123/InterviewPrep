@@ -22,7 +22,7 @@ InterviewPrep/
 
 - [Technical interview questions](Questions/Questions.md) cover backend APIs, data and SQL, Python, AWS, and fraud detection.
 - [System design interview questions](Questions/System_Design_Questions.md) cover chatbots, food delivery, centralized logging, and notifications.
-- [Behavioural interview questions](Questions/Behavioural.md) cover ownership, judgement, collaboration, leadership, and communication.
+- [Behavioural interview questions](Questions/Behavioural.md) cover end-to-end feature design, disagreements, production incidents, bug troubleshooting, and mentoring or feature leadership.
 
 ## Languages and fundamentals
 
